@@ -91,7 +91,7 @@ export async function validateAndGetSite(config: WPSitesConfig, siteArg?: string
     const sitesList = formatSitesList(matches);
     throw new McpError(
         ErrorCode.InvalidParams,
-        `Multiple matching sites found. Please specify which one:\n${sitesList}`
+        `Multiple matching sites found. Let user specify which one to use:\n${sitesList}`
     );
 }
 

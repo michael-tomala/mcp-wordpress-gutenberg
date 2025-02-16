@@ -16,7 +16,7 @@ export const scaffoldBlockTool = {
     execute: async (args) => {
         try {
             // Uproszczona komenda bez --no-interactive
-            const command = `npx @wordpress/create-block ${args.name}`;
+            const command = `cd "${args.directory}" && npx @wordpress/create-block ${args.name}`;
             console.error(`Executing command: ${command}`);
             const output = execSync(command, {
                 stdio: ['pipe', 'pipe', 'pipe'],

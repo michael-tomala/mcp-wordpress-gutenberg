@@ -51,7 +51,7 @@ export async function validateAndGetSite(config, siteArg) {
         return [key, site];
     }
     const sitesList = formatSitesList(matches);
-    throw new McpError(ErrorCode.InvalidParams, `Multiple matching sites found. Please specify which one:\n${sitesList}`);
+    throw new McpError(ErrorCode.InvalidParams, `Multiple matching sites found. Let user specify which one to use:\n${sitesList}`);
 }
 export function validateToolArguments(args) {
     if (!args || typeof args !== 'object') {

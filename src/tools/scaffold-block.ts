@@ -17,7 +17,7 @@ export const scaffoldBlockTool = {
     execute: async (args: { name: string; directory: string }) => {
         try {
             // Uproszczona komenda bez --no-interactive
-            const command = `npx @wordpress/create-block ${args.name} --directory="${args.directory}"`;
+            const command = `cd "${args.directory}" && npx @wordpress/create-block "${args.name}"`;
 
             console.error(`Executing command: ${command}`);
 
@@ -29,7 +29,7 @@ export const scaffoldBlockTool = {
             return {
                 content: [{
                     type: "text",
-                    text: `Block "${args.name}" created successfully in ${args.directory}\n\nOutput:\n${output}`
+                    text: `Block "${args.name}" created successfully in ${args.directory}\n\n. Remember to activate plugin: "${args.name}" in WordPress. Output:\n${output}`
                 }]
             };
         } catch (error) {
