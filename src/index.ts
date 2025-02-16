@@ -3,6 +3,7 @@ import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { ErrorCode, McpError, ListToolsRequestSchema, CallToolRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 import fs from 'fs/promises';
+import path from 'path';
 import {
     WPSitesConfig,
     validateToolArguments,
@@ -10,8 +11,13 @@ import {
 } from './helpers.js';
 import { scaffoldPluginTool } from './tools/scaffold-plugin.js';
 import { scaffoldBlockTool } from './tools/scaffold-block.js';
+import { buildBlockTool } from './tools/build-block.js';
 
-const tools = [scaffoldPluginTool, scaffoldBlockTool];
+const tools = [
+    scaffoldPluginTool,
+    scaffoldBlockTool,
+    buildBlockTool
+];
 
 async function loadSiteConfig(): Promise<WPSitesConfig> {
     const configPath = process.env.WP_SITES_PATH;
@@ -35,10 +41,8 @@ async function loadSiteConfig(): Promise<WPSitesConfig> {
 
 async function main() {
     try {
-        // Load configuration
         const config = await loadSiteConfig();
 
-        // Initialize server
         const server = new Server({
             name: "wordpress-mcp",
             version: "1.0.0"
@@ -46,7 +50,6 @@ async function main() {
             capabilities: { tools: {} }
         });
 
-        // Register tool definitions
         server.setRequestHandler(ListToolsRequestSchema, async () => ({
             tools: tools.map(tool => ({
                 name: tool.name,
@@ -55,30 +58,34 @@ async function main() {
             }))
         }));
 
-        // Handle tool calls
         server.setRequestHandler(CallToolRequestSchema, async (request) => {
             const { name, arguments: rawArgs } = request.params;
 
             validateToolArguments(rawArgs);
             const args = rawArgs;
 
-            // Find and validate site
             const [siteKey, site] = await validateAndGetSite(config, args.site);
 
-            // Find the requested tool
             const tool = tools.find(t => t.name === name);
             if (!tool) {
                 throw new McpError(ErrorCode.MethodNotFound, `Unknown tool: ${name}`);
             }
 
-            // Execute the tool with validated arguments
+            if (tool.name === "wp_build_block") {
+                return await tool.execute({
+                    ...args,
+                    site,
+                    directory: args.directory || `${site.path}/wp-content/plugins`
+                });
+            }
+
             return await tool.execute({
                 ...args,
+                site,
                 directory: args.directory || `${site.path}/wp-content/plugins`
             });
         });
 
-        // Start server
         const transport = new StdioServerTransport();
         await server.connect(transport);
 

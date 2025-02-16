@@ -1,5 +1,7 @@
 // src/helpers.ts
 import { ErrorCode, McpError } from "@modelcontextprotocol/sdk/types.js";
+import fs from 'fs/promises';
+import path from 'path';
 export function similarity(s1, s2) {
     s1 = s1.toLowerCase();
     s2 = s2.toLowerCase();
@@ -67,4 +69,31 @@ export function validateToolArguments(args) {
     if (typedArgs.directory !== undefined && typeof typedArgs.directory !== 'string') {
         throw new McpError(ErrorCode.InvalidParams, 'directory must be a string or undefined');
     }
+}
+export async function isGutenbergBlock(directory) {
+    try {
+        // Sprawdź czy istnieje package.json
+        const packageJsonPath = path.join(directory, 'package.json');
+        const packageJsonExists = await fs.access(packageJsonPath)
+            .then(() => true)
+            .catch(() => false);
+        if (!packageJsonExists)
+            return false;
+        // Sprawdź zawartość package.json
+        const packageJson = JSON.parse(await fs.readFile(packageJsonPath, 'utf-8'));
+        // Sprawdź charakterystyczne zależności dla bloków Gutenberga
+        const dependencies = {
+            ...packageJson.dependencies,
+            ...packageJson.devDependencies
+        };
+        return ('@wordpress/blocks' in dependencies ||
+            '@wordpress/block-editor' in dependencies ||
+            packageJson.blockEditor !== undefined);
+    }
+    catch {
+        return false;
+    }
+}
+export async function shouldRebuildBlock(directory) {
+    return isGutenbergBlock(directory);
 }
