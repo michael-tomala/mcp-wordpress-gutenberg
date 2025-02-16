@@ -2,24 +2,11 @@
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { ErrorCode, McpError, ListToolsRequestSchema, CallToolRequestSchema } from "@modelcontextprotocol/sdk/types.js";
-import { execSync } from 'child_process';
 import fs from 'fs/promises';
-// Funkcje pomocnicze
-function validateToolArguments(args) {
-    if (!args || typeof args !== 'object') {
-        throw new McpError(ErrorCode.InvalidParams, 'Arguments must be an object');
-    }
-    const typedArgs = args;
-    if (typeof typedArgs.site !== 'string') {
-        throw new McpError(ErrorCode.InvalidParams, 'site must be a string');
-    }
-    if (typeof typedArgs.name !== 'string') {
-        throw new McpError(ErrorCode.InvalidParams, 'name must be a string');
-    }
-    if (typedArgs.directory !== undefined && typeof typedArgs.directory !== 'string') {
-        throw new McpError(ErrorCode.InvalidParams, 'directory must be a string or undefined');
-    }
-}
+import { validateToolArguments, validateAndGetSite } from './helpers.js';
+import { scaffoldPluginTool } from './tools/scaffold-plugin.js';
+import { scaffoldBlockTool } from './tools/scaffold-block.js';
+const tools = [scaffoldPluginTool, scaffoldBlockTool];
 async function loadSiteConfig() {
     const configPath = process.env.WP_SITES_PATH;
     if (!configPath) {
@@ -27,8 +14,7 @@ async function loadSiteConfig() {
     }
     try {
         const configData = await fs.readFile(configPath, 'utf8');
-        const config = JSON.parse(configData);
-        return config;
+        return JSON.parse(configData);
     }
     catch (error) {
         if (error instanceof Error) {
@@ -42,93 +28,42 @@ async function loadSiteConfig() {
 }
 async function main() {
     try {
-        // Ładowanie konfiguracji
+        // Load configuration
         const config = await loadSiteConfig();
-        // Inicjalizacja serwera
+        // Initialize server
         const server = new Server({
             name: "wordpress-mcp",
             version: "1.0.0"
         }, {
             capabilities: { tools: {} }
         });
-        // Definicje dostępnych narzędzi
+        // Register tool definitions
         server.setRequestHandler(ListToolsRequestSchema, async () => ({
-            tools: [{
-                    name: "wp_scaffold_plugin",
-                    description: "Creates a new WordPress plugin using @wordpress/create-plugin",
-                    inputSchema: {
-                        type: "object",
-                        properties: {
-                            site: { type: "string", description: "Site alias from configuration" },
-                            name: { type: "string", description: "Plugin name" },
-                            directory: { type: "string", description: "Optional: Custom directory path" }
-                        },
-                        required: ["site", "name"]
-                    }
-                }, {
-                    name: "wp_scaffold_block",
-                    description: "Creates a new Gutenberg block using @wordpress/create-block",
-                    inputSchema: {
-                        type: "object",
-                        properties: {
-                            site: { type: "string", description: "Site alias from configuration" },
-                            name: { type: "string", description: "Plugin name" },
-                            directory: { type: "string", description: "Optional: Custom directory path" }
-                        },
-                        required: ["site", "name"]
-                    }
-                }]
+            tools: tools.map(tool => ({
+                name: tool.name,
+                description: tool.description,
+                inputSchema: tool.inputSchema
+            }))
         }));
-        // Obsługa wywołań narzędzi
+        // Handle tool calls
         server.setRequestHandler(CallToolRequestSchema, async (request) => {
             const { name, arguments: rawArgs } = request.params;
-            // Walidacja argumentów
             validateToolArguments(rawArgs);
             const args = rawArgs;
-            const site = config.sites[args.site];
-            if (!site) {
-                throw new McpError(ErrorCode.InvalidParams, `Unknown site: ${args.site}`);
+            // Find and validate site
+            const [siteKey, site] = await validateAndGetSite(config, args.site);
+            // Find the requested tool
+            const tool = tools.find(t => t.name === name);
+            if (!tool) {
+                throw new McpError(ErrorCode.MethodNotFound, `Unknown tool: ${name}`);
             }
-            switch (name) {
-                case "wp_scaffold_plugin": {
-                    const targetDir = args.directory || `${site.path}/wp-content/plugins`;
-                    try {
-                        const command = `npx @wordpress/create-plugin ${args.name} --directory=${targetDir}`;
-                        execSync(command, { stdio: 'inherit' });
-                        return {
-                            content: [{
-                                    type: "text",
-                                    text: `Plugin "${args.name}" created successfully in ${targetDir}`
-                                }]
-                        };
-                    }
-                    catch (error) {
-                        const errorMessage = error instanceof Error ? error.message : String(error);
-                        throw new McpError(ErrorCode.InternalError, `Failed to create plugin: ${errorMessage}`);
-                    }
-                }
-                case "wp_scaffold_block": {
-                    const targetDir = args.directory || `${site.path}/wp-content/plugins`;
-                    try {
-                        const command = `npx @wordpress/create-block ${args.name} --directory=${targetDir}`;
-                        execSync(command, { stdio: 'inherit' });
-                        return {
-                            content: [{
-                                    type: "text",
-                                    text: `Block "${args.name}" created successfully in ${targetDir}`
-                                }]
-                        };
-                    }
-                    catch (error) {
-                        const errorMessage = error instanceof Error ? error.message : String(error);
-                        throw new McpError(ErrorCode.InternalError, `Failed to create block: ${errorMessage}`);
-                    }
-                }
-                default:
-                    throw new McpError(ErrorCode.MethodNotFound, `Unknown tool: ${name}`);
-            }
+            // Execute the tool with validated arguments
+            return await tool.execute({
+                ...args,
+                directory: args.directory || `${site.path}/wp-content/plugins`
+            });
         });
-        // Uruchomienie serwera
+        // Start server
         const transport = new StdioServerTransport();
         await server.connect(transport);
         console.error(`WordPress MCP server started with ${Object.keys(config.sites).length} site(s) configured`);
