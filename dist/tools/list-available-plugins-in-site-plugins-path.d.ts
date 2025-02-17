@@ -4,10 +4,17 @@ export declare const listAvailablePluginsInSitePluginsPath: {
     description: string;
     inputSchema: {
         type: string;
-        properties: {};
-        required: never[];
+        properties: {
+            siteKey: {
+                type: string;
+                description: string;
+            };
+        };
+        required: string[];
     };
-    execute(args: any, site: WordPressSite): Promise<{
+    execute(args: {
+        siteKey: string;
+    }, site: WordPressSite): Promise<{
         content: {
             type: string;
             text: string;

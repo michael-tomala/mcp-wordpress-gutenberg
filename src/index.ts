@@ -7,11 +7,15 @@ import {validateAndGetSite, validateSiteToolArguments, WPSitesConfig} from './he
 import {scaffoldBlockTool} from './tools/scaffold-block.js';
 import {listPluginFiles} from "./tools/list-plugin-files.js";
 import {listAvailablePluginsInSitePluginsPath} from "./tools/list-available-plugins-in-site-plugins-path.js";
+import {buildBlock} from "./tools/build-block.js";
+import {editBlockFile} from "./tools/edit-block-file.js";
 
 const tools = [
+    editBlockFile,
     scaffoldBlockTool,
     listPluginFiles,
-    listAvailablePluginsInSitePluginsPath
+    listAvailablePluginsInSitePluginsPath,
+    buildBlock
 ];
 
 async function loadSiteConfig(): Promise<WPSitesConfig> {

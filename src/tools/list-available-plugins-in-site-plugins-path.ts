@@ -9,11 +9,13 @@ export const listAvailablePluginsInSitePluginsPath = {
     description: "List a plugins directories which is equivalent of listing available plugins for site",
     inputSchema: {
         type: "object",
-        properties: {},
-        required: []
+        properties: {
+            siteKey: {type: "string", description: "Site key"}
+        },
+        required: ["siteKey"]
     },
 
-    async execute(args: any, site: WordPressSite) {
+    async execute(args: { siteKey: string }, site: WordPressSite) {
 
         const pluginsPath = site.pluginsPath
 

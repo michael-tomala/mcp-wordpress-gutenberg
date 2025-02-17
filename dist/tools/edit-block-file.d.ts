@@ -12,15 +12,20 @@ interface EditFileArgs {
     searchValue?: string;
     replaceValue?: string;
     directory: string;
-    site: WordPressSite;
+    blockPluginDirname: string;
+    siteKey: string;
 }
-export declare const editFileTool: {
+export declare const editBlockFile: {
     name: string;
     description: string;
     inputSchema: {
         type: string;
         properties: {
-            site: {
+            siteKey: {
+                type: string;
+                description: string;
+            };
+            blockPluginDirname: {
                 type: string;
                 description: string;
             };
@@ -48,7 +53,7 @@ export declare const editFileTool: {
         };
         required: string[];
     };
-    execute(args: EditFileArgs): Promise<{
+    execute(args: EditFileArgs, site: WordPressSite): Promise<{
         content: {
             type: string;
             text: string;

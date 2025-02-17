@@ -6,8 +6,10 @@ export const listAvailablePluginsInSitePluginsPath = {
     description: "List a plugins directories which is equivalent of listing available plugins for site",
     inputSchema: {
         type: "object",
-        properties: {},
-        required: []
+        properties: {
+            siteKey: { type: "string", description: "Site key" }
+        },
+        required: ["siteKey"]
     },
     async execute(args, site) {
         const pluginsPath = site.pluginsPath;

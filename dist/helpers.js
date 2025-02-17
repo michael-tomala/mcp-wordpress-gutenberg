@@ -80,9 +80,7 @@ export async function isGutenbergBlock(directory) {
             ...packageJson.dependencies,
             ...packageJson.devDependencies
         };
-        return ('@wordpress/blocks' in dependencies ||
-            '@wordpress/block-editor' in dependencies ||
-            packageJson.blockEditor !== undefined);
+        return ('@wordpress/scripts' in dependencies);
     }
     catch {
         return false;

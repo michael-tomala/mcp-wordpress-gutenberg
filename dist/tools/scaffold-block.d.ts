@@ -2,6 +2,8 @@ import { WordPressSite } from "../types/wp-sites";
 interface ScaffoldArgs {
     name: string;
     siteKey: string;
+    variant: string;
+    namespace: string;
 }
 export declare const scaffoldBlockTool: {
     name: string;
@@ -14,6 +16,14 @@ export declare const scaffoldBlockTool: {
                 description: string;
             };
             name: {
+                type: string;
+                description: string;
+            };
+            variant: {
+                type: string;
+                description: string;
+            };
+            namespace: {
                 type: string;
                 description: string;
             };

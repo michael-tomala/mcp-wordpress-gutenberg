@@ -128,9 +128,7 @@ export async function isGutenbergBlock(directory: string): Promise<boolean> {
         };
 
         return (
-            '@wordpress/blocks' in dependencies ||
-            '@wordpress/block-editor' in dependencies ||
-            packageJson.blockEditor !== undefined
+            '@wordpress/scripts' in dependencies
         );
     } catch {
         return false;

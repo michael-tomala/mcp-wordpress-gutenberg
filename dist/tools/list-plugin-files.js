@@ -26,9 +26,10 @@ export const listPluginFiles = {
     inputSchema: {
         type: "object",
         properties: {
+            siteKey: { type: "string", description: "Site key" },
             pluginDirName: { type: "string", description: "Plugin directory name" }
         },
-        required: ["pluginDirName"]
+        required: ["pluginDirName", "siteKey"]
     },
     async execute(args, site) {
         if (args.pluginDirName === '.' || args.pluginDirName === '') {
@@ -36,22 +37,23 @@ export const listPluginFiles = {
         }
         const blockDir = path.join(site.pluginsPath, args.pluginDirName);
         if (!fs.existsSync(blockDir)) {
-            const { content: [{ directories }] } = await listAvailablePluginsInSitePluginsPath.execute({}, site);
+            const { content: [{ directories }] } = await listAvailablePluginsInSitePluginsPath.execute({ siteKey: args.siteKey }, site);
             return {
+                isError: true,
+                directories,
                 content: [{
                         type: "text",
-                        text: `Directory ${blockDir} not exists. Please review a plugin directory. Available plugins in ${site.pluginsPath}:\n\n${directories.join('\n')}`,
-                        directories
+                        text: `Directory ${blockDir} not exists. Please review a plugin directory. Available plugins in ${site.pluginsPath}:\n\n${directories.join('\n')}`
                     }]
             };
         }
         try {
             const files = listFiles(blockDir);
             return {
+                files,
                 content: [{
                         type: "text",
-                        text: `Files at ${blockDir}:\n\n` + files.join('\n'),
-                        files
+                        text: `Files at ${blockDir}:\n\n` + files.join('\n')
                     }]
             };
         }

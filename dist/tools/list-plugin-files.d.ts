@@ -5,6 +5,10 @@ export declare const listPluginFiles: {
     inputSchema: {
         type: string;
         properties: {
+            siteKey: {
+                type: string;
+                description: string;
+            };
             pluginDirName: {
                 type: string;
                 description: string;
@@ -14,17 +18,22 @@ export declare const listPluginFiles: {
     };
     execute(args: {
         pluginDirName: string;
+        siteKey: string;
     }, site: WordPressSite): Promise<{
+        isError: boolean;
+        directories: string[];
         content: {
             type: string;
             text: string;
-            directories: string[];
         }[];
+        files?: undefined;
     } | {
+        files: any[];
         content: {
             type: string;
             text: string;
-            files: any[];
         }[];
+        isError?: undefined;
+        directories?: undefined;
     }>;
 };

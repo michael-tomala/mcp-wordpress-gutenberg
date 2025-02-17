@@ -1,27 +1,26 @@
 import { WordPressSite } from "../types/wp-sites";
 export interface BuildBlockArgs {
-    name: string;
-    directory: string;
-    site: WordPressSite;
+    blockPluginDirname: string;
+    siteKey: string;
 }
-export declare const buildBlockTool: {
+export declare const buildBlock: {
     name: string;
     description: string;
     inputSchema: {
         type: string;
         properties: {
-            site: {
+            siteKey: {
                 type: string;
                 description: string;
             };
-            name: {
+            blockPluginDirname: {
                 type: string;
                 description: string;
             };
         };
         required: string[];
     };
-    execute: (args: BuildBlockArgs) => Promise<{
+    execute: (args: BuildBlockArgs, site: WordPressSite) => Promise<{
         content: {
             type: string;
             text: string;

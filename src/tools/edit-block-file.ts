@@ -2,9 +2,9 @@
 import {ErrorCode, McpError} from "@modelcontextprotocol/sdk/types.js";
 import {promises as fs} from 'fs';
 import path from 'path';
-import {buildBlockTool} from './build-block.js';
-import {shouldRebuildBlock} from '../helpers.js';
+import {isGutenbergBlock} from '../helpers.js';
 import {WordPressSite} from "../types/wp-sites.js";
+import {buildBlock} from "./build-block.js";
 
 // Definicje typów dla operacji edycji plików
 interface FileOperation {
@@ -21,7 +21,8 @@ interface EditFileArgs {
     searchValue?: string;
     replaceValue?: string;
     directory: string;
-    site: WordPressSite;
+    blockPluginDirname: string;
+    siteKey: string;
 }
 
 // Wzorce komentarzy wskazujące na zachowanie istniejącego kodu
@@ -78,19 +79,21 @@ async function mergeWithExistingCode(originalContent: string, newContent: string
 
     return result.join('\n');
 }
-export const editFileTool = {
-    name: "wp_edit_file",
-    description: "Edits a file in WordPress plugin/block with automatic rebuild detection",
+
+export const editBlockFile = {
+    name: "wp_edit_block_file",
+    description: "Edits a file in WordPress Gutenberg Block Plugin with automatic rebuild detection",
     inputSchema: {
         type: "object",
         properties: {
-            site: {
-                type: "object",
-                description: "Site configuration"
+            siteKey: {type: "string", description: "Site key"},
+            blockPluginDirname: {
+                type: "string",
+                description: "Block plugin directory name."
             },
             filePath: {
                 type: "string",
-                description: "Path to the file relative to the WordPress installation"
+                description: "Path to the file relative to the plugin root."
             },
             content: {
                 type: "string",
@@ -110,14 +113,19 @@ export const editFileTool = {
                 description: "Text to replace with when using modify operation"
             }
         },
-        required: ["filePath", "operation"]
+        required: ["filePath", "operation", "blockPluginDirname", "siteKey"]
     },
 
-    async execute(args: EditFileArgs) {
-        try {
-            const fullPath = path.join(args.site.path, args.filePath);
-            console.error(`Editing file: ${fullPath}`);
+    async execute(args: EditFileArgs, site: WordPressSite) {
 
+        const blockDir = path.join(site.pluginsPath, args.blockPluginDirname)
+        const fullPath = path.join(blockDir, args.filePath);
+
+        if (!(await isGutenbergBlock(blockDir))) {
+            throw new Error(`wp_edit_block_file failed: directory ${blockDir} does not contain a Gutenberg block. Are you sure ${blockDir} is valid?`);
+        }
+
+        try {
             try {
                 await fs.access(fullPath);
             } catch {
@@ -172,45 +180,35 @@ export const editFileTool = {
 
             await fs.writeFile(fullPath, newContent, 'utf-8');
 
-            const blockDirectory = path.dirname(fullPath);
-            const needsRebuild = await shouldRebuildBlock(blockDirectory);
+            try {
+                const buildResult = await buildBlock.execute({
+                    blockPluginDirname: args.blockPluginDirname,
+                    siteKey: args.siteKey
+                }, site);
 
-            if (needsRebuild) {
-                console.error(`File is part of a Gutenberg block, running build...`);
-                try {
-                    // Wyciągnij nazwę bloku z ścieżki
-                    const pluginDirName = path.basename(blockDirectory);
-
-                    const buildResult = await buildBlockTool.execute({
-                        name: pluginDirName,
-                        directory: path.dirname(blockDirectory),
-                        site: args.site // Teraz interfejs to akceptuje
-                    });
-
-                    return {
-                        content: [{
-                            type: "text",
-                            text: `File edited successfully.\n\nBuild output:\n${buildResult.content[0].text}`
-                        }]
-                    };
-                } catch (error) {
-                    const errorMessage = error instanceof Error ? error.message : 'Unknown build error';
-                    throw new Error(`File edited but build failed: ${errorMessage}`);
-                }
+                return {
+                    content: [{
+                        type: "text",
+                        text: `Block file: ${fullPath} edited successfully.\n\nBuild output:\n${buildResult.content[0].text}`
+                    }]
+                };
+            } catch (error) {
+                const errorMessage = error instanceof Error ? error.message : 'Unknown build error';
+                throw new Error(`Block file: ${fullPath} edited but build failed: ${errorMessage}. Please try build again on check error logs on your own.`);
             }
 
             return {
                 content: [{
                     type: "text",
-                    text: "File edited successfully."
+                    text: `Block file: ${fullPath} edited successfully.`
                 }]
             };
+
         } catch (error) {
-            console.error('File editing error:', error);
             if (error instanceof Error) {
                 throw new McpError(ErrorCode.InternalError, error.message);
             }
-            throw new McpError(ErrorCode.InternalError, 'Unknown error occurred while editing file');
+            throw new McpError(ErrorCode.InternalError, 'wp_edit_block_file: Unknown error occurred');
         }
     }
 };

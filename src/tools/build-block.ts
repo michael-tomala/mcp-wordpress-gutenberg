@@ -6,63 +6,54 @@ import {WordPressSite} from "../types/wp-sites";
 import path from "path";
 
 export interface BuildBlockArgs {
-    name: string;
-    directory: string;
-    site: WordPressSite;
+    blockPluginDirname: string;
+    siteKey: string;
 }
 
-export const buildBlockTool = {
+export const buildBlock = {
     name: "wp_build_block",
     description: "Builds a Gutenberg block using npm run build",
     inputSchema: {
         type: "object",
         properties: {
-            site: {
-                type: "object",
-                description: "Site configuration"
-            },
-            name: {
+            siteKey: {type: "string", description: "Site key"},
+            blockPluginDirname: {
                 type: "string",
-                description: "Block base directory name."
+                description: "Block plugin directory name."
             }
         },
-        required: ["name", "site"]
+        required: ["blockPluginDirname", "siteKey"]
     },
 
-    execute: async (args: BuildBlockArgs) => {
+    execute: async (args: BuildBlockArgs, site: WordPressSite) => {
 
-        const site: WordPressSite = args.site;
-        const blockDir = path.join(site.pluginsPath);
+        const blockDir = path.join(site.pluginsPath, args.blockPluginDirname);
 
-        if (!await isGutenbergBlock(blockDir)) {
+        if (!(await isGutenbergBlock(blockDir))) {
             throw new Error(`wp_build_block failed: directory ${blockDir} does not contain a Gutenberg block. Are you sure ${blockDir} is valid?`);
         }
 
         try {
 
-            // Instalacja zależności - ukrywamy szczegółowe logi
-            console.error(`Installing dependencies for ${args.name}...`);
             try {
-                execSync('/usr/local/bin/npm install --no-audit --no-fund --silent', {
+                execSync('npm install --no-audit --no-fund --silent', {
                     cwd: blockDir,
                     stdio: ['pipe', 'pipe', 'pipe'],
                     shell: '/bin/bash'
                 });
             } catch (error) {
-                throw new Error(`npm install failed: ${error instanceof Error ? error.message : String(error)} in ${blockDir}`);
+                throw new Error(`wp_build_block: npm install failed with error - ${error instanceof Error ? error.message : String(error)} in ${blockDir}`);
             }
 
-            // Build - przechwytujemy output
-            console.error(`Building ${args.name}...`);
             try {
-                const buildOutput = execSync('/usr/local/bin/npm run build', {
+
+                const buildOutput = execSync('npm run build', {
                     cwd: blockDir,
                     stdio: ['pipe', 'pipe', 'pipe'],
                     shell: '/bin/bash',
                     encoding: 'utf-8'
                 });
 
-                // Filtrujemy i formatujemy output builda
                 const relevantOutput = buildOutput
                     .split('\n')
                     .filter(line =>
@@ -76,7 +67,7 @@ export const buildBlockTool = {
                 return {
                     content: [{
                         type: "text",
-                        text: `✅ Block "${args.name}" built successfully!\n\nBuild summary:\n${relevantOutput}`
+                        text: `✅ Block "${args.blockPluginDirname}" built successfully!\n\nBuild summary:\n${relevantOutput}`
                     }]
                 };
             } catch (error) {
@@ -90,14 +81,13 @@ export const buildBlockTool = {
                     )
                     .join('\n');
 
-                throw new Error(`Build failed:\n${formattedError}\n\nTry to fix a problem, but do not create a new structure on your own.`);
+                throw new Error(`wp_build_block failed:\n${formattedError}\n\nTry to fix a problem, but do not create a new structure on your own.`);
             }
         } catch (error) {
-            console.error('Build error:', error);
             if (error instanceof Error) {
                 throw new McpError(ErrorCode.InternalError, error.message);
             }
-            throw new McpError(ErrorCode.InternalError, 'Unknown error occurred during build');
+            throw new McpError(ErrorCode.InternalError, 'wp_build_block failed: Unknown error occurred');
         }
     }
 };
