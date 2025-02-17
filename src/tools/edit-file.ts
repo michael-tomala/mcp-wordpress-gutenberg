@@ -13,12 +13,14 @@ interface FileOperation {
     replaceValue?: string;
 }
 
-interface ToolArguments {
+interface EditFileArgs {
     filePath: string;
     operation: FileOperation['type'];
     content?: string;
     searchValue?: string;
     replaceValue?: string;
+    directory: string;
+    name: string;
     site: {
         path: string;
     };
@@ -113,7 +115,7 @@ export const editFileTool = {
         required: ["filePath", "operation"]
     },
 
-    async execute(args: ToolArguments) {
+    async execute(args: EditFileArgs) {
         try {
             const fullPath = path.join(args.site.path, args.filePath);
             console.error(`Editing file: ${fullPath}`);

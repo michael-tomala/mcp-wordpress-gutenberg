@@ -1,9 +1,9 @@
 // src/tools/build-block.ts
-import { ErrorCode, McpError } from "@modelcontextprotocol/sdk/types.js";
-import { execSync } from 'child_process';
-import path from 'path';
+import {ErrorCode, McpError} from "@modelcontextprotocol/sdk/types.js";
+import {execSync} from 'child_process';
+import {isGutenbergBlock} from "../helpers.js";
 
-interface BuildBlockArgs {
+export interface BuildBlockArgs {
     name: string;
     directory: string;
     site: {
@@ -34,8 +34,13 @@ export const buildBlockTool = {
     },
 
     execute: async (args: BuildBlockArgs) => {
+        const blockDir = args.directory;
+
+        if (!isGutenbergBlock(blockDir)) {
+            throw new Error(`wp_build_block failed: directory ${blockDir} does not contain a Gutenberg block. Are you sure ${blockDir} is valid?`);
+        }
+
         try {
-            const blockDir = args.directory;
 
             // Instalacja zależności - ukrywamy szczegółowe logi
             console.error(`Installing dependencies for ${args.name}...`);
@@ -46,7 +51,7 @@ export const buildBlockTool = {
                     shell: '/bin/bash'
                 });
             } catch (error) {
-                throw new Error(`npm install failed: ${error instanceof Error ? error.message : String(error)}`);
+                throw new Error(`npm install failed: ${error instanceof Error ? error.message : String(error)} in ${blockDir}`);
             }
 
             // Build - przechwytujemy output
@@ -87,7 +92,7 @@ export const buildBlockTool = {
                     )
                     .join('\n');
 
-                throw new Error(`Build failed:\n${formattedError}`);
+                throw new Error(`Build failed:\n${formattedError}\n\nTry to fix a problem, but do not create a new structure on your own.`);
             }
         } catch (error) {
             console.error('Build error:', error);

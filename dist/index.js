@@ -1,16 +1,18 @@
 // src/index.ts
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { ErrorCode, McpError, ListToolsRequestSchema, CallToolRequestSchema } from "@modelcontextprotocol/sdk/types.js";
+import { CallToolRequestSchema, ErrorCode, ListToolsRequestSchema, McpError } from "@modelcontextprotocol/sdk/types.js";
 import fs from 'fs/promises';
-import { validateToolArguments, validateAndGetSite } from './helpers.js';
+import { validateAndGetSite, validateToolArguments } from './helpers.js';
 import { scaffoldPluginTool } from './tools/scaffold-plugin.js';
 import { scaffoldBlockTool } from './tools/scaffold-block.js';
 import { buildBlockTool } from './tools/build-block.js';
+import { editFileTool } from "./tools/edit-file.js";
 const tools = [
     scaffoldPluginTool,
     scaffoldBlockTool,
-    buildBlockTool
+    buildBlockTool,
+    editFileTool
 ];
 async function loadSiteConfig() {
     const configPath = process.env.WP_SITES_PATH;
@@ -57,12 +59,13 @@ async function main() {
                 throw new McpError(ErrorCode.MethodNotFound, `Unknown tool: ${name}`);
             }
             if (tool.name === "wp_build_block") {
-                return await tool.execute({
+                return await buildBlockTool.execute({
                     ...args,
                     site,
                     directory: args.directory || `${site.path}/wp-content/plugins`
                 });
             }
+            // @ts-ignore
             return await tool.execute({
                 ...args,
                 site,

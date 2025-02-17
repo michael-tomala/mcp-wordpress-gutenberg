@@ -1,6 +1,7 @@
 // src/tools/build-block.ts
 import { ErrorCode, McpError } from "@modelcontextprotocol/sdk/types.js";
 import { execSync } from 'child_process';
+import { isGutenbergBlock } from "../helpers.js";
 export const buildBlockTool = {
     name: "wp_build_block",
     description: "Builds a Gutenberg block using npm run build",
@@ -23,8 +24,11 @@ export const buildBlockTool = {
         required: ["name", "directory"]
     },
     execute: async (args) => {
+        const blockDir = args.directory;
+        if (!isGutenbergBlock(blockDir)) {
+            throw new Error(`wp_build_block failed: directory ${blockDir} does not contain a Gutenberg block. Are you sure ${blockDir} is valid?`);
+        }
         try {
-            const blockDir = args.directory;
             // Instalacja zależności - ukrywamy szczegółowe logi
             console.error(`Installing dependencies for ${args.name}...`);
             try {
@@ -35,7 +39,7 @@ export const buildBlockTool = {
                 });
             }
             catch (error) {
-                throw new Error(`npm install failed: ${error instanceof Error ? error.message : String(error)}`);
+                throw new Error(`npm install failed: ${error instanceof Error ? error.message : String(error)} in ${blockDir}`);
             }
             // Build - przechwytujemy output
             console.error(`Building ${args.name}...`);
@@ -69,7 +73,7 @@ export const buildBlockTool = {
                     line.includes('failed') ||
                     line.includes('webpack'))
                     .join('\n');
-                throw new Error(`Build failed:\n${formattedError}`);
+                throw new Error(`Build failed:\n${formattedError}\n\nTry to fix a problem, but do not create a new structure on your own.`);
             }
         }
         catch (error) {

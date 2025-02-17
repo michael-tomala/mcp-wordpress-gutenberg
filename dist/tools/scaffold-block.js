@@ -2,6 +2,7 @@
 import { ErrorCode, McpError } from "@modelcontextprotocol/sdk/types.js";
 import { execSync } from 'child_process';
 import { buildBlockTool } from './build-block.js';
+import { isGutenbergBlock } from "../helpers.js";
 export const scaffoldBlockTool = {
     name: "wp_scaffold_block",
     description: "Creates and builds a new Gutenberg block using @wordpress/create-block",
@@ -15,10 +16,15 @@ export const scaffoldBlockTool = {
         required: ["name"]
     },
     execute: async (args) => {
+        const blockDir = args.directory + '/' + args.name.toLowerCase().replace(/ /g, '-');
+        const pluginDir = args.directory;
+        if (!isGutenbergBlock(blockDir)) {
+            throw new Error(`wp_build_block failed: directory ${blockDir} already contain a Gutenberg block. Are you sure ${blockDir} is valid? Do you want to build block instead? Or remove old block and create a new one?`);
+        }
         try {
-            console.error(`Creating block: ${args.name} in ${args.directory}`);
+            console.error(`Creating block: ${args.name} in ${pluginDir}`);
             // Tworzenie bloku
-            const command = `cd "${args.directory}" && npx @wordpress/create-block ${args.name}`;
+            const command = `cd "${pluginDir}" && npx @wordpress/create-block ${args.name}`;
             const scaffoldOutput = execSync(command, {
                 stdio: ['pipe', 'pipe', 'pipe'],
                 encoding: 'utf-8'
@@ -27,7 +33,7 @@ export const scaffoldBlockTool = {
             // Automatyczne wywołanie build z przekazaniem site
             const buildResult = await buildBlockTool.execute({
                 name: args.name,
-                directory: args.directory,
+                directory: blockDir,
                 site: args.site
             });
             return {

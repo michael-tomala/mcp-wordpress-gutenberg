@@ -1,22 +1,19 @@
 // src/index.ts
-import { Server } from "@modelcontextprotocol/sdk/server/index.js";
-import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { ErrorCode, McpError, ListToolsRequestSchema, CallToolRequestSchema } from "@modelcontextprotocol/sdk/types.js";
+import {Server} from "@modelcontextprotocol/sdk/server/index.js";
+import {StdioServerTransport} from "@modelcontextprotocol/sdk/server/stdio.js";
+import {CallToolRequestSchema, ErrorCode, ListToolsRequestSchema, McpError} from "@modelcontextprotocol/sdk/types.js";
 import fs from 'fs/promises';
-import path from 'path';
-import {
-    WPSitesConfig,
-    validateToolArguments,
-    validateAndGetSite
-} from './helpers.js';
-import { scaffoldPluginTool } from './tools/scaffold-plugin.js';
-import { scaffoldBlockTool } from './tools/scaffold-block.js';
-import { buildBlockTool } from './tools/build-block.js';
+import {validateAndGetSite, validateToolArguments, WPSitesConfig} from './helpers.js';
+import {scaffoldPluginTool} from './tools/scaffold-plugin.js';
+import {scaffoldBlockTool} from './tools/scaffold-block.js';
+import {BuildBlockArgs, buildBlockTool} from './tools/build-block.js';
+import {editFileTool} from "./tools/edit-file.js";
 
 const tools = [
     scaffoldPluginTool,
     scaffoldBlockTool,
-    buildBlockTool
+    buildBlockTool,
+    editFileTool
 ];
 
 async function loadSiteConfig(): Promise<WPSitesConfig> {
@@ -47,7 +44,7 @@ async function main() {
             name: "wordpress-mcp",
             version: "1.0.0"
         }, {
-            capabilities: { tools: {} }
+            capabilities: {tools: {}}
         });
 
         server.setRequestHandler(ListToolsRequestSchema, async () => ({
@@ -59,7 +56,7 @@ async function main() {
         }));
 
         server.setRequestHandler(CallToolRequestSchema, async (request) => {
-            const { name, arguments: rawArgs } = request.params;
+            const {name, arguments: rawArgs} = request.params;
 
             validateToolArguments(rawArgs);
             const args = rawArgs;
@@ -72,13 +69,14 @@ async function main() {
             }
 
             if (tool.name === "wp_build_block") {
-                return await tool.execute({
+                return await buildBlockTool.execute({
                     ...args,
                     site,
                     directory: args.directory || `${site.path}/wp-content/plugins`
-                });
+                } as BuildBlockArgs);
             }
 
+            // @ts-ignore
             return await tool.execute({
                 ...args,
                 site,
