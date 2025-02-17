@@ -10,13 +10,23 @@ import { listAvailablePluginsInSitePluginsPath } from "./tools/list-available-pl
 import { buildBlock } from "./tools/build-block.js";
 import { editBlockFile } from "./tools/edit-block-file.js";
 import { apiActivatePlugin } from "./tools/wp-api/activate-plugin.js";
+import { apiCreatePost } from "./tools/wp-api/create-post.js";
+import { apiUpdatePostStatus } from "./tools/wp-api/update-post-status.js";
+import { apiGetPosts } from "./tools/wp-api/get-posts.js";
+import { apiGetPostTypes } from "./tools/wp-api/get-post-types.js";
+import { apiGetPlugins } from "./tools/wp-api/get-plugins.js";
 const tools = [
     editBlockFile,
     scaffoldBlockTool,
     listPluginFiles,
     listAvailablePluginsInSitePluginsPath,
     buildBlock,
-    apiActivatePlugin
+    apiActivatePlugin,
+    apiCreatePost,
+    apiUpdatePostStatus,
+    apiGetPosts,
+    apiGetPostTypes,
+    apiGetPlugins
 ];
 async function loadSiteConfig() {
     const configPath = process.env.WP_SITES_PATH;
