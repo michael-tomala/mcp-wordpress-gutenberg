@@ -51,7 +51,7 @@ export const scaffoldBlockTool = {
             return {
                 content: [{
                         type: "text",
-                        text: `Block "${args.name}" created and built successfully.\n\nCreated files: ${listedPluginFiles?.files?.join('\n')}.\n\nDo you want to do any changes in this block or create a test page in WordPress with this block embedded?`
+                        text: `Block "${args.name}" created and built successfully.\n\nCreated files: ${listedPluginFiles?.files?.join('\n')}.\n\nDo you want to do any changes in this block or activate WordPress plugin and create a test page in WordPress with this block embedded?`
                     }]
             };
         }

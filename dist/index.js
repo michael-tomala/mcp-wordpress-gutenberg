@@ -9,12 +9,14 @@ import { listPluginFiles } from "./tools/list-plugin-files.js";
 import { listAvailablePluginsInSitePluginsPath } from "./tools/list-available-plugins-in-site-plugins-path.js";
 import { buildBlock } from "./tools/build-block.js";
 import { editBlockFile } from "./tools/edit-block-file.js";
+import { apiActivatePlugin } from "./tools/wp-api/activate-plugin.js";
 const tools = [
     editBlockFile,
     scaffoldBlockTool,
     listPluginFiles,
     listAvailablePluginsInSitePluginsPath,
-    buildBlock
+    buildBlock,
+    apiActivatePlugin
 ];
 async function loadSiteConfig() {
     const configPath = process.env.WP_SITES_PATH;
@@ -60,15 +62,6 @@ async function main() {
             if (!tool) {
                 throw new McpError(ErrorCode.MethodNotFound, `Unknown tool: ${name}`);
             }
-            // if (tool.name === "wp_build_block") {
-            //     const [blockDir] = await validateAndGetBlock(config, args.site);
-            //
-            //
-            //     return await buildBlockTool.execute({
-            //         ...args,
-            //         site
-            //     } as BuildBlockArgs);
-            // }
             // @ts-ignore
             return await tool.execute({
                 ...rawArgs,
