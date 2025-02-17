@@ -1,5 +1,5 @@
 import { WordPressSite } from "types/wp-sites";
-export declare const apiGetPostTypes: {
+export declare const apiGetGutenbergBlocks: {
     name: string;
     description: string;
     inputSchema: {
@@ -15,8 +15,7 @@ export declare const apiGetPostTypes: {
     execute(args: {
         siteKey: string;
     }, site: WordPressSite): Promise<{
-        postTypes: any;
-        postTypesList: string[];
+        blocks: any;
         content: {
             type: string;
             text: string;

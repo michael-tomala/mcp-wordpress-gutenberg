@@ -1,23 +1,22 @@
 import { ErrorCode, McpError } from "@modelcontextprotocol/sdk/types.js";
 import { apiGetRestBaseForPostType } from "./get-rest-base-for-post-types.js";
-export const apiGetPosts = {
-    name: "wp_api_get_posts",
-    description: "Retrieve a list of posts, pages, or custom post type items using REST API",
+export const apiGetPost = {
+    name: "wp_api_get_post",
+    description: "Retrieve a single post, page, or custom post type item using REST API",
     inputSchema: {
         type: "object",
         properties: {
             siteKey: { type: "string", description: "Site key" },
             postType: { type: "string", description: "Post type (default: posts)" },
-            perPage: { type: "integer", description: "Number of posts to retrieve (default: 10)" },
-            page: { type: "integer", description: "Page number for pagination (default: 1)" }
+            postId: { type: "integer", description: "Post ID to retrieve" }, // New property to specify post ID
         },
-        required: ["siteKey", "postType"]
+        required: ["siteKey", "postType", "postId"]
     },
     async execute(args, site) {
         try {
             const { restBase } = await apiGetRestBaseForPostType.execute(args, site);
             const credentials = Buffer.from(`${site.apiCredentials?.username}:${site.apiCredentials?.password}`).toString('base64');
-            const url = `${site.apiUrl}/wp/v2/${restBase}?per_page=${args.perPage || 10}&page=${args.page || 1}`;
+            const url = `${site.apiUrl}/wp/v2/${restBase}/${args.postId}`; // Modified URL to fetch single post by ID
             const response = await fetch(url, {
                 method: 'GET',
                 headers: {
@@ -27,23 +26,22 @@ export const apiGetPosts = {
             });
             if (!response.ok) {
                 const errorData = await response.json();
-                throw new Error(`Failed to retrieve posts: ${errorData.message || response.statusText}.
-Requested URL: ${url}`);
+                throw new Error(`Failed to retrieve post: ${errorData.message || response.statusText}. Requested URL: ${url}`);
             }
             const data = await response.json();
             return {
-                pluginData: data,
+                post: data,
                 content: [{
                         type: "text",
-                        text: `Posts retrieved successfully.\n\nPosts: ${JSON.stringify(data)}`
+                        text: `Post retrieved successfully.\n\nPost: ${JSON.stringify(data)}`
                     }]
             };
         }
         catch (error) {
             if (error instanceof Error) {
-                throw new McpError(ErrorCode.InternalError, `wp_api_get_posts failed: ${error.message}`);
+                throw new McpError(ErrorCode.InternalError, `wp_api_get_post failed: ${error.message}`);
             }
-            throw new McpError(ErrorCode.InternalError, 'wp_api_get_posts failed: Unknown error occurred');
+            throw new McpError(ErrorCode.InternalError, 'wp_api_get_post failed: Unknown error occurred');
         }
     }
 };

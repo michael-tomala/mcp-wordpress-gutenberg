@@ -1,13 +1,13 @@
 import {WordPressSite} from "types/wp-sites";
 import {ErrorCode, McpError} from "@modelcontextprotocol/sdk/types.js";
 
-export const apiGetPostTypes = {
-    name: "wp_api_get_post_types",
-    description: "Get a WordPress post types using REST API",
+export const apiGetGutenbergBlocks = {
+    name: "wp_api_get_gutenberg_blocks",
+    description: "Get available Gutenberg blocks for the WordPress site",
     inputSchema: {
         type: "object",
         properties: {
-            siteKey: {type: "string", description: "Site key"},
+            siteKey: {type: "string", description: "Site key"}
         },
         required: ["siteKey"]
     },
@@ -15,7 +15,7 @@ export const apiGetPostTypes = {
     async execute(args: { siteKey: string }, site: WordPressSite) {
         try {
             const credentials = Buffer.from(`${site.apiCredentials?.username}:${site.apiCredentials?.password}`).toString('base64');
-            const url = `${site.apiUrl}/wp/v2/types`
+            const url = `${site.apiUrl}/wp/v2/block-types`;
 
             const response = await fetch(url, {
                 method: 'GET',
@@ -27,28 +27,23 @@ export const apiGetPostTypes = {
 
             if (!response.ok) {
                 const errorData = await response.json();
-                throw new Error(`Failed to get post types: ${errorData.message || response.statusText}.\nRequested URL: ${url}`);
+                throw new Error(`Failed to get Gutenberg blocks: ${errorData.message || response.statusText}.\nRequested URL: ${url}`);
             }
 
-            const data = await response.json();
-
-            const list = Object.values(data).map((postType: any, i: number) => {
-                return (i + 1) + '. ' + postType.name + ' (slug: ' + postType.slug + ')';
-            })
+            const blocks = await response.json();
 
             return {
-                postTypes: data,
-                postTypesList: list,
+                blocks: blocks,
                 content: [{
                     type: "text",
-                    text: `Available post types:\n${JSON.stringify(data)}`
+                    text: `Available Gutenberg blocks:\n${JSON.stringify(blocks, null, 2)}`
                 }]
             };
         } catch (error) {
             if (error instanceof Error) {
-                throw new McpError(ErrorCode.InternalError, `wp_api_get_post_types failed: ${error.message}`);
+                throw new McpError(ErrorCode.InternalError, `wp_api_get_gutenberg_blocks failed: ${error.message}`);
             }
-            throw new McpError(ErrorCode.InternalError, 'wp_api_get_post_types failed: Unknown error occurred');
+            throw new McpError(ErrorCode.InternalError, 'wp_api_get_gutenberg_blocks failed: Unknown error occurred');
         }
     }
 };

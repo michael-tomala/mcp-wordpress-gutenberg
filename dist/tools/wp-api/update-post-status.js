@@ -1,4 +1,5 @@
 import { ErrorCode, McpError } from "@modelcontextprotocol/sdk/types.js";
+import { apiGetRestBaseForPostType } from "./get-rest-base-for-post-types.js";
 export const apiUpdatePostStatus = {
     name: "wp_api_update_post_status",
     description: "Update the status of an existing WordPress post, page, or custom post type item using REST API",
@@ -9,14 +10,19 @@ export const apiUpdatePostStatus = {
             postId: { type: "integer", description: "ID of the post to update" },
             postType: { type: "string", description: "Post type (default: posts)" },
             status: { type: "string", enum: ["publish", "draft"], description: "Status to set (publish or draft)" },
-            publishDate: { type: "string", format: "date-time", description: "Optional scheduled publication date in ISO 8601 format" }
+            publishDate: {
+                type: "string",
+                format: "date-time",
+                description: "Optional scheduled publication date in ISO 8601 format"
+            }
         },
         required: ["siteKey", "postId", "postType", "status"]
     },
     async execute(args, site) {
         try {
+            const { restBase } = await apiGetRestBaseForPostType.execute(args, site);
             const credentials = Buffer.from(`${site.apiCredentials?.username}:${site.apiCredentials?.password}`).toString('base64');
-            const url = `${site.apiUrl}/wp/v2/${args.postType}/${args.postId}`;
+            const url = `${site.apiUrl}/wp/v2/${restBase}/${args.postId}`;
             const bodyData = { status: args.status };
             if (args.status === "publish" && args.publishDate) {
                 bodyData.date = args.publishDate;

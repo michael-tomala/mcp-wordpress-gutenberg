@@ -1,5 +1,5 @@
 import { WordPressSite } from "types/wp-sites";
-export declare const apiCreatePost: {
+export declare const apiUpdatePostContent: {
     name: string;
     description: string;
     inputSchema: {
@@ -9,11 +9,11 @@ export declare const apiCreatePost: {
                 type: string;
                 description: string;
             };
-            postType: {
+            postId: {
                 type: string;
                 description: string;
             };
-            title: {
+            postType: {
                 type: string;
                 description: string;
             };
@@ -21,11 +21,7 @@ export declare const apiCreatePost: {
                 type: string;
                 description: string;
             };
-            parent: {
-                type: string;
-                description: string;
-            };
-            template: {
+            readCurrentContent: {
                 type: string;
                 description: string;
             };
@@ -34,20 +30,19 @@ export declare const apiCreatePost: {
     };
     execute(args: {
         siteKey: string;
+        postId: number;
         postType: string;
-        title: string;
         content: string;
-        parent: Number;
-        template?: string;
+        readCurrentContent: boolean;
     }, site: WordPressSite): Promise<{
         isError: boolean;
         content: {
             type: string;
             text: string;
         }[];
-        pluginData?: undefined;
+        updatedPost?: undefined;
     } | {
-        pluginData: any;
+        updatedPost: any;
         content: {
             type: string;
             text: string;

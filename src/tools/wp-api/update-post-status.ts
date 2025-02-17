@@ -1,5 +1,6 @@
-import { WordPressSite } from "types/wp-sites";
-import { ErrorCode, McpError } from "@modelcontextprotocol/sdk/types.js";
+import {WordPressSite} from "types/wp-sites";
+import {ErrorCode, McpError} from "@modelcontextprotocol/sdk/types.js";
+import {apiGetRestBaseForPostType} from "./get-rest-base-for-post-types.js";
 
 export const apiUpdatePostStatus = {
     name: "wp_api_update_post_status",
@@ -7,21 +8,33 @@ export const apiUpdatePostStatus = {
     inputSchema: {
         type: "object",
         properties: {
-            siteKey: { type: "string", description: "Site key" },
-            postId: { type: "integer", description: "ID of the post to update" },
-            postType: { type: "string", description: "Post type (default: posts)" },
-            status: { type: "string", enum: ["publish", "draft"], description: "Status to set (publish or draft)" },
-            publishDate: { type: "string", format: "date-time", description: "Optional scheduled publication date in ISO 8601 format" }
+            siteKey: {type: "string", description: "Site key"},
+            postId: {type: "integer", description: "ID of the post to update"},
+            postType: {type: "string", description: "Post type (default: posts)"},
+            status: {type: "string", enum: ["publish", "draft"], description: "Status to set (publish or draft)"},
+            publishDate: {
+                type: "string",
+                format: "date-time",
+                description: "Optional scheduled publication date in ISO 8601 format"
+            }
         },
         required: ["siteKey", "postId", "postType", "status"]
     },
 
-    async execute(args: { siteKey: string, postId: number, postType: string, status: string, publishDate?: string }, site: WordPressSite) {
+    async execute(args: {
+        siteKey: string,
+        postId: number,
+        postType: string,
+        status: string,
+        publishDate?: string
+    }, site: WordPressSite) {
         try {
-            const credentials = Buffer.from(`${site.apiCredentials?.username}:${site.apiCredentials?.password}`).toString('base64');
-            const url = `${site.apiUrl}/wp/v2/${args.postType}/${args.postId}`;
+            const {restBase} = await apiGetRestBaseForPostType.execute(args, site)
 
-            const bodyData: any = { status: args.status };
+            const credentials = Buffer.from(`${site.apiCredentials?.username}:${site.apiCredentials?.password}`).toString('base64');
+            const url = `${site.apiUrl}/wp/v2/${restBase}/${args.postId}`;
+
+            const bodyData: any = {status: args.status};
             if (args.status === "publish" && args.publishDate) {
                 bodyData.date = args.publishDate;
             }

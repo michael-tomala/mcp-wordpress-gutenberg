@@ -1,5 +1,6 @@
 import { WordPressSite } from "types/wp-sites";
 import { ErrorCode, McpError } from "@modelcontextprotocol/sdk/types.js";
+import {apiGetRestBaseForPostType} from "./get-rest-base-for-post-types.js";
 
 export const apiGetPosts = {
     name: "wp_api_get_posts",
@@ -17,8 +18,10 @@ export const apiGetPosts = {
 
     async execute(args: { siteKey: string, postType: string, perPage?: number, page?: number }, site: WordPressSite) {
         try {
+            const {restBase} = await apiGetRestBaseForPostType.execute(args, site)
+
             const credentials = Buffer.from(`${site.apiCredentials?.username}:${site.apiCredentials?.password}`).toString('base64');
-            const url = `${site.apiUrl}/wp/v2/${args.postType}?per_page=${args.perPage || 10}&page=${args.page || 1}`;
+            const url = `${site.apiUrl}/wp/v2/${restBase}?per_page=${args.perPage || 10}&page=${args.page || 1}`;
 
             const response = await fetch(url, {
                 method: 'GET',

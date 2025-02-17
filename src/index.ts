@@ -15,6 +15,12 @@ import {apiUpdatePostStatus} from "./tools/wp-api/update-post-status.js";
 import {apiGetPosts} from "./tools/wp-api/get-posts.js";
 import {apiGetPostTypes} from "./tools/wp-api/get-post-types.js";
 import {apiGetPlugins} from "./tools/wp-api/get-plugins.js";
+import {apiUpdatePost} from "./tools/wp-api/update-post.js";
+import {apiGetGutenbergBlocks} from "./tools/wp-api/get-block-types.js";
+import {apiGetTemplates} from "./tools/wp-api/get-templates.js";
+import {apiGetRestBaseForPostType} from "./tools/wp-api/get-rest-base-for-post-types.js";
+import {apiUpdatePostContent} from "./tools/wp-api/update-post-content.js";
+import {apiGetPost} from "./tools/wp-api/get-post.js";
 
 const tools = [
     editBlockFile,
@@ -27,8 +33,14 @@ const tools = [
     apiCreatePost,
     apiUpdatePostStatus,
     apiGetPosts,
+    apiGetPost,
     apiGetPostTypes,
-    apiGetPlugins
+    apiGetPlugins,
+    apiUpdatePost,
+    apiGetGutenbergBlocks,
+    apiGetTemplates,
+    apiGetRestBaseForPostType,
+    apiUpdatePostContent
 ];
 
 async function loadSiteConfig(): Promise<WPSitesConfig> {

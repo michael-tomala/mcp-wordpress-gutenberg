@@ -1,5 +1,5 @@
 import { WordPressSite } from "types/wp-sites";
-export declare const apiGetPostTypes: {
+export declare const apiGetRestBaseForPostType: {
     name: string;
     description: string;
     inputSchema: {
@@ -9,14 +9,19 @@ export declare const apiGetPostTypes: {
                 type: string;
                 description: string;
             };
+            postType: {
+                type: string;
+                description: string;
+            };
         };
         required: string[];
     };
     execute(args: {
         siteKey: string;
+        postType: string;
     }, site: WordPressSite): Promise<{
-        postTypes: any;
-        postTypesList: string[];
+        postType: any;
+        restBase: any;
         content: {
             type: string;
             text: string;
