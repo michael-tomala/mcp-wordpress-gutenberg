@@ -13,6 +13,7 @@ export const apiUpdatePost = {
             postType: {type: "string", description: "Type of the post (e.g., posts, pages)"},
             template: {type: "string", description: "Optional: Post template"},
             title: {type: "string", description: "Optional: Post title"},
+            excerpt: {type: "string", description: "Optional: Post excerpt"},
         },
         required: ["siteKey", "postId", "postType"]
     },
@@ -23,6 +24,7 @@ export const apiUpdatePost = {
         postType: string,
         title?: string,
         template?: string
+        excerpt?: string
     }, site: WordPressSite) {
         try {
 
@@ -37,6 +39,9 @@ export const apiUpdatePost = {
             }
             if (args.template) {
                 bodyData.template = args.template
+            }
+            if (args.excerpt) {
+                bodyData.excerpt = args.excerpt
             }
             // @ts-ignore
             if (args.content) {

@@ -25,6 +25,10 @@ export declare const apiUpdatePost: {
                 type: string;
                 description: string;
             };
+            excerpt: {
+                type: string;
+                description: string;
+            };
         };
         required: string[];
     };
@@ -34,6 +38,7 @@ export declare const apiUpdatePost: {
         postType: string;
         title?: string;
         template?: string;
+        excerpt?: string;
     }, site: WordPressSite): Promise<{
         updatedPost: any;
         content: {
