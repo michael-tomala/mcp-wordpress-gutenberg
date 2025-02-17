@@ -50,24 +50,18 @@ export async function validateAndGetSite(config, siteArg) {
     }
     if (matches.length === 1) {
         const [key, site] = matches[0];
-        return [key, site];
+        return site;
     }
     const sitesList = formatSitesList(matches);
     throw new McpError(ErrorCode.InvalidParams, `Multiple matching sites found. Let user specify which one to use:\n${sitesList}`);
 }
-export function validateToolArguments(args) {
+export function validateSiteToolArguments(args) {
     if (!args || typeof args !== 'object') {
         throw new McpError(ErrorCode.InvalidParams, 'Arguments must be an object');
     }
     const typedArgs = args;
-    if (typedArgs.site !== undefined && typeof typedArgs.site !== 'string') {
-        throw new McpError(ErrorCode.InvalidParams, 'site must be a string if provided');
-    }
-    if (typeof typedArgs.name !== 'string') {
-        throw new McpError(ErrorCode.InvalidParams, 'name must be a string');
-    }
-    if (typedArgs.directory !== undefined && typeof typedArgs.directory !== 'string') {
-        throw new McpError(ErrorCode.InvalidParams, 'directory must be a string or undefined');
+    if (typedArgs.siteKey !== undefined && typeof typedArgs.siteKey !== 'string') {
+        throw new McpError(ErrorCode.InvalidParams, 'siteKey must be a string if provided');
     }
 }
 export async function isGutenbergBlock(directory) {

@@ -57,8 +57,8 @@ export const editFileTool = {
         type: "object",
         properties: {
             site: {
-                type: "string",
-                description: "Site alias from configuration"
+                type: "object",
+                description: "Site configuration"
             },
             filePath: {
                 type: "string",

@@ -2,6 +2,7 @@
 import { ErrorCode, McpError } from "@modelcontextprotocol/sdk/types.js";
 import { execSync } from 'child_process';
 import { isGutenbergBlock } from "../helpers.js";
+import path from "path";
 export const buildBlockTool = {
     name: "wp_build_block",
     description: "Builds a Gutenberg block using npm run build",
@@ -9,23 +10,20 @@ export const buildBlockTool = {
         type: "object",
         properties: {
             site: {
-                type: "string",
-                description: "Site alias from configuration"
+                type: "object",
+                description: "Site configuration"
             },
             name: {
                 type: "string",
-                description: "Block name"
-            },
-            directory: {
-                type: "string",
-                description: "Block directory path"
+                description: "Block base directory name."
             }
         },
-        required: ["name", "directory"]
+        required: ["name", "site"]
     },
     execute: async (args) => {
-        const blockDir = args.directory;
-        if (!isGutenbergBlock(blockDir)) {
+        const site = args.site;
+        const blockDir = path.join(site.pluginsPath);
+        if (!await isGutenbergBlock(blockDir)) {
             throw new Error(`wp_build_block failed: directory ${blockDir} does not contain a Gutenberg block. Are you sure ${blockDir} is valid?`);
         }
         try {

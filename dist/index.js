@@ -3,16 +3,14 @@ import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { CallToolRequestSchema, ErrorCode, ListToolsRequestSchema, McpError } from "@modelcontextprotocol/sdk/types.js";
 import fs from 'fs/promises';
-import { validateAndGetSite, validateToolArguments } from './helpers.js';
-import { scaffoldPluginTool } from './tools/scaffold-plugin.js';
+import { validateAndGetSite, validateSiteToolArguments } from './helpers.js';
 import { scaffoldBlockTool } from './tools/scaffold-block.js';
-import { buildBlockTool } from './tools/build-block.js';
-import { editFileTool } from "./tools/edit-file.js";
+import { listPluginFiles } from "./tools/list-plugin-files.js";
+import { listAvailablePluginsInSitePluginsPath } from "./tools/list-available-plugins-in-site-plugins-path.js";
 const tools = [
-    scaffoldPluginTool,
     scaffoldBlockTool,
-    buildBlockTool,
-    editFileTool
+    listPluginFiles,
+    listAvailablePluginsInSitePluginsPath
 ];
 async function loadSiteConfig() {
     const configPath = process.env.WP_SITES_PATH;
@@ -51,26 +49,27 @@ async function main() {
         }));
         server.setRequestHandler(CallToolRequestSchema, async (request) => {
             const { name, arguments: rawArgs } = request.params;
-            validateToolArguments(rawArgs);
-            const args = rawArgs;
-            const [siteKey, site] = await validateAndGetSite(config, args.site);
+            validateSiteToolArguments(rawArgs);
+            const { siteKey } = rawArgs;
+            const site = await validateAndGetSite(config, siteKey);
             const tool = tools.find(t => t.name === name);
             if (!tool) {
                 throw new McpError(ErrorCode.MethodNotFound, `Unknown tool: ${name}`);
             }
-            if (tool.name === "wp_build_block") {
-                return await buildBlockTool.execute({
-                    ...args,
-                    site,
-                    directory: args.directory || `${site.path}/wp-content/plugins`
-                });
-            }
+            // if (tool.name === "wp_build_block") {
+            //     const [blockDir] = await validateAndGetBlock(config, args.site);
+            //
+            //
+            //     return await buildBlockTool.execute({
+            //         ...args,
+            //         site
+            //     } as BuildBlockArgs);
+            // }
             // @ts-ignore
             return await tool.execute({
-                ...args,
-                site,
-                directory: args.directory || `${site.path}/wp-content/plugins`
-            });
+                ...rawArgs,
+                siteKey
+            }, site);
         });
         const transport = new StdioServerTransport();
         await server.connect(transport);

@@ -1,9 +1,8 @@
-// src/types/wp-sites.ts
 export interface WordPressSite {
     name: string;
-    path: string;           // Ścieżka do instalacji WordPress
-    pluginsPath: string;           // Ścieżka do instalacji WordPress
-    apiUrl: string;         // URL do WP REST API
+    path: string;
+    pluginsPath: string;
+    apiUrl: string;
     apiCredentials?: {
         username: string;
         password: string;
@@ -16,7 +15,6 @@ export interface WordPressSite {
         name: string;
     };
 }
-
 export interface WPSitesConfig {
     sites: Record<string, WordPressSite>;
 }

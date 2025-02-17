@@ -6,6 +6,7 @@ import path from 'path';
 export interface WordPressSite {
     name: string;
     path: string;
+    pluginsPath: string;
     aliases?: string[];
     apiUrl: string;
     apiCredentials?: {
@@ -21,11 +22,7 @@ export interface WPSitesConfig {
 }
 
 export interface ToolArguments {
-    site?: string;
-    name: string;
-    directory?: string;
-
-    [key: string]: unknown;
+    siteKey: string;
 }
 
 export function similarity(s1: string, s2: string): number {
@@ -75,7 +72,7 @@ export function formatSitesList(sites: Array<[string, WordPressSite, number]>): 
         .join('\n');
 }
 
-export async function validateAndGetSite(config: WPSitesConfig, siteArg?: string): Promise<[string, WordPressSite]> {
+export async function validateAndGetSite(config: WPSitesConfig, siteArg?: string): Promise<WordPressSite> {
     const matches = findMatchingSites(config, siteArg);
 
     if (matches.length === 0) {
@@ -88,7 +85,7 @@ export async function validateAndGetSite(config: WPSitesConfig, siteArg?: string
 
     if (matches.length === 1) {
         const [key, site] = matches[0];
-        return [key, site];
+        return site;
     }
 
     const sitesList = formatSitesList(matches);
@@ -98,23 +95,15 @@ export async function validateAndGetSite(config: WPSitesConfig, siteArg?: string
     );
 }
 
-export function validateToolArguments(args: unknown): asserts args is ToolArguments {
+export function validateSiteToolArguments(args: unknown): asserts args is ToolArguments {
     if (!args || typeof args !== 'object') {
         throw new McpError(ErrorCode.InvalidParams, 'Arguments must be an object');
     }
 
     const typedArgs = args as Record<string, unknown>;
 
-    if (typedArgs.site !== undefined && typeof typedArgs.site !== 'string') {
-        throw new McpError(ErrorCode.InvalidParams, 'site must be a string if provided');
-    }
-
-    if (typeof typedArgs.name !== 'string') {
-        throw new McpError(ErrorCode.InvalidParams, 'name must be a string');
-    }
-
-    if (typedArgs.directory !== undefined && typeof typedArgs.directory !== 'string') {
-        throw new McpError(ErrorCode.InvalidParams, 'directory must be a string or undefined');
+    if (typedArgs.siteKey !== undefined && typeof typedArgs.siteKey !== 'string') {
+        throw new McpError(ErrorCode.InvalidParams, 'siteKey must be a string if provided');
     }
 }
 

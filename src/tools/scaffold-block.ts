@@ -1,15 +1,14 @@
 // src/tools/scaffold-block.ts
-import { ErrorCode, McpError } from "@modelcontextprotocol/sdk/types.js";
-import { execSync } from 'child_process';
-import { buildBlockTool } from './build-block.js';
-import {isGutenbergBlock} from "../helpers.js";
+import {ErrorCode, McpError} from "@modelcontextprotocol/sdk/types.js";
+import {execSync} from 'child_process';
+import path from "path";
+import fs from 'fs';
+import {WordPressSite} from "../types/wp-sites";
+import {listPluginFiles} from "./list-plugin-files.js";
 
 interface ScaffoldArgs {
     name: string;
-    directory: string;
-    site: {
-        path: string;
-    };
+    siteKey: string;
 }
 
 export const scaffoldBlockTool = {
@@ -18,44 +17,45 @@ export const scaffoldBlockTool = {
     inputSchema: {
         type: "object",
         properties: {
-            site: { type: "string", description: "Site alias from configuration" },
-            name: { type: "string", description: "Block name" },
-            directory: { type: "string", description: "Optional: Custom directory path" }
+            siteKey: {type: "string", description: "Site key"},
+            name: {type: "string", description: "Block name"}
         },
-        required: ["name"]
+        required: ["name", "siteKey"]
     },
-    execute: async (args: ScaffoldArgs) => {
+    execute: async (args: ScaffoldArgs, site: WordPressSite) => {
 
-        const blockDir = args.directory + '/' + args.name.toLowerCase().replace(/ /g, '-')
-        const pluginDir = args.directory
+        if (typeof args.name !== 'string') {
+            throw new McpError(ErrorCode.InvalidParams, 'Block name must be a string');
+        }
 
-        if( !isGutenbergBlock(blockDir) ) {
-            throw new Error(`wp_build_block failed: directory ${blockDir} already contain a Gutenberg block. Are you sure ${blockDir} is valid? Do you want to build block instead? Or remove old block and create a new one?`);
+        const blockDir = path.join(site.pluginsPath, args.name.toLowerCase().replace(/ /g, '-'))
+        const pluginDir = site.pluginsPath
+
+        if (fs.existsSync(blockDir)) {
+            throw new McpError(ErrorCode.InvalidRequest, `wp_scaffold_block failed: directory ${blockDir} already exists. Please change a block name or remove existing plugin!`);
         }
 
         try {
-            console.error(`Creating block: ${args.name} in ${pluginDir}`);
 
-            // Tworzenie bloku
-            const command = `cd "${pluginDir}" && npx @wordpress/create-block ${args.name}`;
-            const scaffoldOutput = execSync(command, {
+            execSync(`cd "${pluginDir}" && npx @wordpress/create-block ${args.name}`, {
                 stdio: ['pipe', 'pipe', 'pipe'],
                 encoding: 'utf-8'
             });
 
-            console.error('Block created, starting build...');
+            // const buildResult = await buildBlockTool.execute({
+            //     name: args.name,
+            //     directory: blockDir,
+            //     site
+            // });
 
-            // Automatyczne wywołanie build z przekazaniem site
-            const buildResult = await buildBlockTool.execute({
-                name: args.name,
-                directory: blockDir,
-                site: args.site
-            });
+            const listedPluginFiles = await listPluginFiles.execute({
+                pluginDirName: path.basename(blockDir)
+            }, site);
 
             return {
                 content: [{
                     type: "text",
-                    text: `Block "${args.name}" created and built successfully\n\nScaffold output:\n${scaffoldOutput}\n\nBuild output:\n${buildResult.content[0].text}`
+                    text: `Block "${args.name}" created and built successfully.\n\n${listedPluginFiles.content[0].text}`
                 }]
             };
         } catch (error) {

@@ -4,6 +4,7 @@ import {promises as fs} from 'fs';
 import path from 'path';
 import {buildBlockTool} from './build-block.js';
 import {shouldRebuildBlock} from '../helpers.js';
+import {WordPressSite} from "../types/wp-sites.js";
 
 // Definicje typów dla operacji edycji plików
 interface FileOperation {
@@ -20,10 +21,7 @@ interface EditFileArgs {
     searchValue?: string;
     replaceValue?: string;
     directory: string;
-    name: string;
-    site: {
-        path: string;
-    };
+    site: WordPressSite;
 }
 
 // Wzorce komentarzy wskazujące na zachowanie istniejącego kodu
@@ -87,8 +85,8 @@ export const editFileTool = {
         type: "object",
         properties: {
             site: {
-                type: "string",
-                description: "Site alias from configuration"
+                type: "object",
+                description: "Site configuration"
             },
             filePath: {
                 type: "string",
