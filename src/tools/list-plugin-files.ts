@@ -66,7 +66,7 @@ export const listPluginFiles = {
                 files,
                 content: [{
                     type: "text",
-                    text: `Files at ${blockDir}:\n\n` + files.join('\n')
+                    text: `Files at ${blockDir}:\n\n` + files.map((f) => f.replace(blockDir, '')).join('\n')
                 }]
             };
         } catch (error) {

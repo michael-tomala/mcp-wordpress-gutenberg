@@ -32,7 +32,7 @@ export const listAvailablePluginsInSitePluginsPath = {
             return {
                 content: [{
                     type: "text",
-                    text: `Available plugins directories in ${directories}:\n\n${directories.join('\n')}`,
+                    text: `Available plugins directories in ${pluginsPath}:\n\n${directories.join('\n')}`,
                     directories
                 }]
             };

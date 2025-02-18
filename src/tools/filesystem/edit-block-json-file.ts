@@ -12,7 +12,7 @@ interface EditFileArgs {
     content: string;
     blockPluginDirname: string;
     siteKey: string;
-    areYouSure: boolean;
+    didUserConfirmChanges: boolean;
 }
 
 export const editBlockJsonFile = {
@@ -34,12 +34,12 @@ export const editBlockJsonFile = {
                 type: "string",
                 description: "New content for the block.json file"
             },
-            areYouSure: {
+            didUserConfirmChanges: {
                 type: "boolean",
                 description: "Are you sure about this changes from new content?"
             }
         },
-        required: ["filePath", "blockPluginDirname", "siteKey", "content", "areYouSure"]
+        required: ["filePath", "blockPluginDirname", "siteKey", "content", "didUserConfirmChanges"]
     },
 
     async execute(args: EditFileArgs, site: WordPressSite) {
@@ -79,14 +79,14 @@ export const editBlockJsonFile = {
             try {
                 let newContent = args.content;
 
-                if (args.areYouSure) {
+                if (args.didUserConfirmChanges) {
                     await fs.writeFile(fullPath, newContent, 'utf-8');
                 } else {
                     return {
                         isError: true,
                         content: [{
                             type: "text",
-                            text: `Are you sure to make changes to block.json file within ${fullPath}\nNew content:\n${JSON.stringify(newContent, null, 2)}`
+                            text: `Are you sure to make changes to block.json file within ${fullPath}\nNew content:\n${JSON.stringify(newContent, null, 2)}. Please ask user what he think! Let user confirm or not your changes.`
                         }]
                     };
                 }
