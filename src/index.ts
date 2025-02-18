@@ -8,7 +8,7 @@ import {scaffoldBlockTool} from './tools/scaffold-block.js';
 import {listPluginFiles} from "./tools/list-plugin-files.js";
 import {listAvailablePluginsInSitePluginsPath} from "./tools/list-available-plugins-in-site-plugins-path.js";
 import {buildBlock} from "./tools/build-block.js";
-import {editBlockFile} from "./tools/edit-block-file.js";
+import {editBlockFile} from "./tools/filesystem/edit-block-file.js";
 import {apiActivatePlugin} from "./tools/wp-api/activate-plugin.js";
 import {apiCreatePost} from "./tools/wp-api/create-post.js";
 import {apiUpdatePostStatus} from "./tools/wp-api/update-post-status.js";
@@ -22,6 +22,7 @@ import {apiGetRestBaseForPostType} from "./tools/wp-api/get-rest-base-for-post-t
 import {apiUpdatePostContent} from "./tools/wp-api/update-post-content.js";
 import {apiGetPost} from "./tools/wp-api/get-post.js";
 import {cliInstallAndActivatePlugin} from "tools/wp-cli/instal-and-activate-plugin";
+import {editBlockJsonFile} from "tools/filesystem/edit-block-json-file";
 
 const tools = [
     editBlockFile,
@@ -29,6 +30,7 @@ const tools = [
     listPluginFiles,
     listAvailablePluginsInSitePluginsPath,
     buildBlock,
+    editBlockJsonFile,
 
     apiActivatePlugin,
     apiCreatePost,

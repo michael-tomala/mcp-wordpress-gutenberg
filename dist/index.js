@@ -6368,7 +6368,7 @@ async function mergeWithExistingCode(originalContent, newContent) {
 }
 const editBlockFile = {
     name: "wp_edit_block_file",
-    description: "Edits a file in WordPress Gutenberg Block Plugin with automatic rebuild detection",
+    description: "Edits a common file in WordPress Gutenberg Block Plugin with automatic rebuild detection",
     inputSchema: {
         type: "object",
         properties: {
@@ -6406,6 +6406,9 @@ const editBlockFile = {
         const fullPath = path.join(blockDir, args.filePath);
         if (!(await isGutenbergBlock(blockDir))) {
             throw new Error(`wp_edit_block_file failed: directory ${blockDir} does not contain a Gutenberg block. Are you sure ${blockDir} is valid?`);
+        }
+        if (args.filePath.endsWith('block.json')) {
+            throw new Error(`This tool cannot edit block.json file. Please use another tool: wp_edit_block_json_file instead and try again.`);
         }
         try {
             try {
@@ -6484,6 +6487,62 @@ const editBlockFile = {
     }
 };
 
+const apiGetPlugins = {
+    name: "wp_api_get_plugins",
+    description: "Get WordPress plugins (active, inactive, or all) using REST API",
+    inputSchema: {
+        type: "object",
+        properties: {
+            siteKey: { type: "string", description: "Site key" },
+            status: {
+                type: "string",
+                enum: ["active", "inactive", "all"],
+                description: "Filter plugins by status. Default is 'active'."
+            },
+        },
+        required: ["siteKey"],
+        additionalProperties: false
+    },
+    async execute(args, site) {
+        try {
+            const credentials = Buffer.from(`${site.apiCredentials?.username}:${site.apiCredentials?.password}`).toString('base64');
+            const url = `${site.apiUrl}/wp/v2/plugins`;
+            const filterStatus = args.status || "active";
+            const response = await fetch(url, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Basic ${credentials}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(`Failed to get plugins: ${errorData.message || response.statusText}.\nRequested URL: ${url}`);
+            }
+            const data = await response.json();
+            let filteredPlugins = data;
+            if (filterStatus !== "all") {
+                filteredPlugins = data.filter((plugin) => plugin.status === filterStatus);
+            }
+            const pluginsList = filteredPlugins.map((plugin) => plugin.name + ' (' + plugin.plugin + ')');
+            return {
+                plugins: filteredPlugins,
+                pluginsList,
+                content: [{
+                        type: "text",
+                        text: `${filterStatus.charAt(0).toUpperCase() + filterStatus.slice(1)} plugins:\n${pluginsList.join('\n')}`
+                    }]
+            };
+        }
+        catch (error) {
+            if (error instanceof Error) {
+                throw new McpError(ErrorCode.InternalError, `wp_api_get_plugins failed: ${error.message}`);
+            }
+            throw new McpError(ErrorCode.InternalError, 'wp_api_get_plugins failed: Unknown error occurred');
+        }
+    }
+};
+
 const apiActivatePlugin = {
     name: "wp_api_activate_plugin",
     description: "Activates a WordPress plugin using REST API",
@@ -6498,6 +6557,16 @@ const apiActivatePlugin = {
     async execute(args, site) {
         try {
             const pluginSlug = args.pluginSlug.replace('.php', '');
+            const allPlugins = await apiGetPlugins.execute({ ...args, status: 'all' }, site);
+            if (!allPlugins.plugins.find((p) => p.plugin === pluginSlug)) {
+                return {
+                    isError: true,
+                    content: [{
+                            type: "text",
+                            text: `Plugin ${args.pluginSlug} is invalid. Available plugins:\n\n${allPlugins.pluginsList.join('\n')}. Please try again with correct plugin slug.`
+                        }]
+                };
+            }
             const credentials = Buffer.from(`${site.apiCredentials?.username}:${site.apiCredentials?.password}`).toString('base64');
             const url = `${site.apiUrl}/wp/v2/plugins/${pluginSlug}`;
             const response = await fetch(url, {
@@ -6795,9 +6864,7 @@ Requested URL: ${url}`);
                 pluginData: data,
                 content: [{
                         type: "text",
-                        text: `Post status updated successfully.
-
-Post: ${JSON.stringify(data)}`
+                        text: `Post status updated successfully.\nPost #ID: ${data.id}\nPost URL: ${data.link}\nPost status: ${data.status}\nPost type: ${data.type}\nPost title: ${data.title?.rendered}`
                     }]
             };
         }
@@ -6854,60 +6921,6 @@ Requested URL: ${url}`);
                 throw new McpError(ErrorCode.InternalError, `wp_api_get_posts failed: ${error.message}`);
             }
             throw new McpError(ErrorCode.InternalError, 'wp_api_get_posts failed: Unknown error occurred');
-        }
-    }
-};
-
-const apiGetPlugins = {
-    name: "wp_api_get_plugins",
-    description: "Get WordPress plugins (active, inactive, or all) using REST API",
-    inputSchema: {
-        type: "object",
-        properties: {
-            siteKey: { type: "string", description: "Site key" },
-            status: {
-                type: "string",
-                enum: ["active", "inactive", "all"],
-                description: "Filter plugins by status. Default is 'active'."
-            },
-        },
-        required: ["siteKey"],
-        additionalProperties: false
-    },
-    async execute(args, site) {
-        try {
-            const credentials = Buffer.from(`${site.apiCredentials?.username}:${site.apiCredentials?.password}`).toString('base64');
-            const url = `${site.apiUrl}/wp/v2/plugins`;
-            const filterStatus = args.status || "active";
-            const response = await fetch(url, {
-                method: 'GET',
-                headers: {
-                    'Authorization': `Basic ${credentials}`,
-                    'Content-Type': 'application/json'
-                }
-            });
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(`Failed to get plugins: ${errorData.message || response.statusText}.\nRequested URL: ${url}`);
-            }
-            const data = await response.json();
-            let filteredPlugins = data;
-            if (filterStatus !== "all") {
-                filteredPlugins = data.filter((plugin) => plugin.status === filterStatus);
-            }
-            return {
-                plugins: filteredPlugins,
-                content: [{
-                        type: "text",
-                        text: `${filterStatus.charAt(0).toUpperCase() + filterStatus.slice(1)} plugins:\n${filteredPlugins.map((plugin) => plugin.name + ' (' + plugin.plugin + ')').join('\n')}`
-                    }]
-            };
-        }
-        catch (error) {
-            if (error instanceof Error) {
-                throw new McpError(ErrorCode.InternalError, `wp_api_get_plugins failed: ${error.message}`);
-            }
-            throw new McpError(ErrorCode.InternalError, 'wp_api_get_plugins failed: Unknown error occurred');
         }
     }
 };
@@ -7163,12 +7176,113 @@ const cliInstallAndActivatePlugin = {
     }
 };
 
+const editBlockJsonFile = {
+    name: "wp_edit_block_json_file",
+    description: "Edits a file: block.json in WordPress Gutenberg Block Plugin with automatic rebuild detection and block.json file validation.",
+    inputSchema: {
+        type: "object",
+        properties: {
+            siteKey: { type: "string", description: "Site key" },
+            blockPluginDirname: {
+                type: "string",
+                description: "Block plugin directory name."
+            },
+            filePath: {
+                type: "string",
+                description: "Path to the block.json file relative to the plugin root."
+            },
+            content: {
+                type: "string",
+                description: "New content for the block.json file"
+            },
+            areYouSure: {
+                type: "boolean",
+                description: "Are you sure about this changes from new content?"
+            }
+        },
+        required: ["filePath", "blockPluginDirname", "siteKey", "content", "areYouSure"]
+    },
+    async execute(args, site) {
+        const blockDir = path.join(site.pluginsPath, args.blockPluginDirname);
+        const fullPath = path.join(blockDir, args.filePath);
+        if (!(await isGutenbergBlock(blockDir))) {
+            throw new Error(`wp_edit_block_json_file failed: directory ${blockDir} does not contain a Gutenberg block. Are you sure ${blockDir} is valid?`);
+        }
+        if (!args.filePath.endsWith('block.json')) {
+            throw new Error(`wp_edit_block_json_file failed: this tool can only edit block.json file. Are you sure ${fullPath} is valid for this action?`);
+        }
+        try {
+            try {
+                await promises.access(fullPath);
+            }
+            catch {
+                throw new Error(`File block.json not found: ${fullPath}.`);
+            }
+            let originalContent;
+            try {
+                originalContent = await promises.readFile(fullPath, 'utf-8');
+            }
+            catch (error) {
+                const errorMessage = error instanceof Error ? error.message : 'Unknown read error';
+                throw new Error(`Failed to read current block.json file: ${errorMessage}`);
+            }
+            try {
+                let newContent = args.content;
+                if (args.areYouSure) {
+                    await promises.writeFile(fullPath, newContent, 'utf-8');
+                }
+                else {
+                    return {
+                        isError: true,
+                        content: [{
+                                type: "text",
+                                text: `Are you sure to make changes to block.json file within ${fullPath}\nNew content:\n${JSON.stringify(newContent, null, 2)}`
+                            }]
+                    };
+                }
+            }
+            catch (error) {
+                throw new Error(`New content cannot be parsed: ${args.content}`);
+            }
+            try {
+                const buildResult = await buildBlock.execute({
+                    blockPluginDirname: args.blockPluginDirname,
+                    siteKey: args.siteKey
+                }, site);
+                return {
+                    content: [{
+                            type: "text",
+                            text: `block.json file: ${fullPath} edited successfully.\n\nBuild output:\n${buildResult.content[0].text}`
+                        }]
+                };
+            }
+            catch (error) {
+                const errorMessage = error instanceof Error ? error.message : 'Unknown build error';
+                throw new Error(`block.json file: ${fullPath} edited but build failed: ${errorMessage}. Please try build again on check error logs on your own.`);
+            }
+            return {
+                content: [{
+                        type: "text",
+                        text: `block.json file: ${fullPath} edited successfully.`
+                    }]
+            };
+        }
+        catch (error) {
+            if (error instanceof Error) {
+                throw new McpError(ErrorCode.InternalError, error.message);
+            }
+            throw new McpError(ErrorCode.InternalError, 'wp_edit_block_json_file: Unknown error occurred');
+        }
+    }
+};
+
 const tools = [
     editBlockFile,
     scaffoldBlockTool,
     listPluginFiles,
     listAvailablePluginsInSitePluginsPath,
     buildBlock,
+    editBlockJsonFile,
     apiActivatePlugin,
     apiCreatePost,
     apiUpdatePostStatus,

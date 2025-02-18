@@ -47,11 +47,14 @@ export const apiGetPlugins = {
                 filteredPlugins = data.filter((plugin: { status: string }) => plugin.status === filterStatus);
             }
 
+            const pluginsList = filteredPlugins.map((plugin: any) => plugin.name + ' (' + plugin.plugin + ')')
+
             return {
                 plugins: filteredPlugins,
+                pluginsList,
                 content: [{
                     type: "text",
-                    text: `${filterStatus.charAt(0).toUpperCase() + filterStatus.slice(1)} plugins:\n${filteredPlugins.map((plugin: any) => plugin.name + ' (' + plugin.plugin + ')').join('\n')}`
+                    text: `${filterStatus.charAt(0).toUpperCase() + filterStatus.slice(1)} plugins:\n${pluginsList.join('\n')}`
                 }]
             };
         } catch (error) {

@@ -2,9 +2,9 @@
 import {ErrorCode, McpError} from "@modelcontextprotocol/sdk/types.js";
 import {promises as fs} from 'fs';
 import path from 'path';
-import {isGutenbergBlock} from '../helpers.js';
-import {WordPressSite} from "../types/wp-sites.js";
-import {buildBlock} from "./build-block.js";
+import {isGutenbergBlock} from '../../helpers.js';
+import {WordPressSite} from "../../types/wp-sites.js";
+import {buildBlock} from "./../build-block.js";
 
 // Definicje typów dla operacji edycji plików
 interface FileOperation {
@@ -82,7 +82,7 @@ async function mergeWithExistingCode(originalContent: string, newContent: string
 
 export const editBlockFile = {
     name: "wp_edit_block_file",
-    description: "Edits a file in WordPress Gutenberg Block Plugin with automatic rebuild detection",
+    description: "Edits a common file in WordPress Gutenberg Block Plugin with automatic rebuild detection",
     inputSchema: {
         type: "object",
         properties: {
@@ -123,6 +123,9 @@ export const editBlockFile = {
 
         if (!(await isGutenbergBlock(blockDir))) {
             throw new Error(`wp_edit_block_file failed: directory ${blockDir} does not contain a Gutenberg block. Are you sure ${blockDir} is valid?`);
+        }
+        if (args.filePath.endsWith('block.json')) {
+            throw new Error(`This tool cannot edit block.json file. Please use another tool: wp_edit_block_json_file instead and try again.`);
         }
 
         try {

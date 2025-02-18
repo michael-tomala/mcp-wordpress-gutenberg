@@ -1,5 +1,6 @@
 import {WordPressSite} from "types/wp-sites";
 import {ErrorCode, McpError} from "@modelcontextprotocol/sdk/types.js";
+import {apiGetPlugins} from "tools/wp-api/get-plugins";
 
 export const apiActivatePlugin = {
     name: "wp_api_activate_plugin",
@@ -16,6 +17,18 @@ export const apiActivatePlugin = {
     async execute(args: { siteKey: string; pluginSlug: string }, site: WordPressSite) {
         try {
             const pluginSlug = args.pluginSlug.replace('.php', '')
+
+            const allPlugins = await apiGetPlugins.execute({...args, status: 'all'}, site)
+            if (!allPlugins.plugins.find((p: any) => p.plugin === pluginSlug)) {
+                return {
+                    isError: true,
+                    content: [{
+                        type: "text",
+                        text: `Plugin ${args.pluginSlug} is invalid. Available plugins:\n\n${allPlugins.pluginsList.join('\n')}. Please try again with correct plugin slug.`
+                    }]
+                };
+            }
+
             const credentials = Buffer.from(`${site.apiCredentials?.username}:${site.apiCredentials?.password}`).toString('base64');
             const url = `${site.apiUrl}/wp/v2/plugins/${pluginSlug}`
 

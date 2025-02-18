@@ -59,9 +59,7 @@ Requested URL: ${url}`);
                 pluginData: data,
                 content: [{
                     type: "text",
-                    text: `Post status updated successfully.
-
-Post: ${JSON.stringify(data)}`
+                    text: `Post status updated successfully.\nPost #ID: ${data.id}\nPost URL: ${data.link}\nPost status: ${data.status}\nPost type: ${data.type}\nPost title: ${data.title?.rendered}`
                 }]
             };
         } catch (error) {
