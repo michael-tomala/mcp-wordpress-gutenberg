@@ -2,8 +2,11 @@
 import {ErrorCode, McpError} from "@modelcontextprotocol/sdk/types.js";
 import fs from 'fs/promises';
 import path from 'path';
+import {execSync} from "child_process";
 
 export interface WordPressSite {
+    localWpSshEntryFile: string;
+    cli?: string;
     name: string;
     path: string;
     pluginsPath: string;
@@ -91,7 +94,7 @@ export async function validateAndGetSite(config: WPSitesConfig, siteArg?: string
     const sitesList = formatSitesList(matches);
     throw new McpError(
         ErrorCode.InvalidParams,
-        `Multiple matching sites found. Let user specify which one to use:\n${sitesList}`
+        `Multiple matching sites found. Please choose which one to use and try again:\n${sitesList}`
     );
 }
 
@@ -138,3 +141,23 @@ export async function isGutenbergBlock(directory: string): Promise<boolean> {
 export async function shouldRebuildBlock(directory: string): Promise<boolean> {
     return isGutenbergBlock(directory);
 }
+
+
+// Funkcja sprawdzająca, czy WP-CLI jest zainstalowane lokalnie
+export const checkLocalWPCLI = (cwd: string) => {
+    try {
+        execSync(`php "${path.resolve(cwd, 'wp-cli.phar')}" --info`, {stdio: "pipe"});
+        return true; // WP-CLI jest zainstalowane lokalnie
+    } catch (error) {
+        return false; // WP-CLI nie jest zainstalowane lokalnie
+    }
+};
+
+export const checkGlobalWPCLI = () => {
+    try {
+        execSync("wp --info", {stdio: "pipe"});
+        return true; // WP-CLI jest zainstalowane globalnie
+    } catch (error) {
+        return false; // WP-CLI nie jest zainstalowane globalnie
+    }
+};

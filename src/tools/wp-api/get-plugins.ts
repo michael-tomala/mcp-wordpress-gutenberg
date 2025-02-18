@@ -1,5 +1,5 @@
-import { WordPressSite } from "types/wp-sites";
-import { ErrorCode, McpError } from "@modelcontextprotocol/sdk/types.js";
+import {WordPressSite} from "types/wp-sites";
+import {ErrorCode, McpError} from "@modelcontextprotocol/sdk/types.js";
 
 export const apiGetPlugins = {
     name: "wp_api_get_plugins",
@@ -7,7 +7,7 @@ export const apiGetPlugins = {
     inputSchema: {
         type: "object",
         properties: {
-            siteKey: { type: "string", description: "Site key" },
+            siteKey: {type: "string", description: "Site key"},
             status: {
                 type: "string",
                 enum: ["active", "inactive", "all"],
@@ -51,7 +51,7 @@ export const apiGetPlugins = {
                 plugins: filteredPlugins,
                 content: [{
                     type: "text",
-                    text: `${filterStatus.charAt(0).toUpperCase() + filterStatus.slice(1)} plugins:\n${filteredPlugins.map((plugin: any) => plugin.name).join(', ')}`
+                    text: `${filterStatus.charAt(0).toUpperCase() + filterStatus.slice(1)} plugins:\n${filteredPlugins.map((plugin: any) => plugin.name + ' (' + plugin.plugin + ')').join('\n')}`
                 }]
             };
         } catch (error) {

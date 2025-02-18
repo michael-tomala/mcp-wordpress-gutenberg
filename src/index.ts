@@ -2,7 +2,7 @@
 import {Server} from "@modelcontextprotocol/sdk/server/index.js";
 import {StdioServerTransport} from "@modelcontextprotocol/sdk/server/stdio.js";
 import {CallToolRequestSchema, ErrorCode, ListToolsRequestSchema, McpError} from "@modelcontextprotocol/sdk/types.js";
-import fs from 'fs/promises';
+import fs from 'fs';
 import {validateAndGetSite, validateSiteToolArguments, WPSitesConfig} from './helpers.js';
 import {scaffoldBlockTool} from './tools/scaffold-block.js';
 import {listPluginFiles} from "./tools/list-plugin-files.js";
@@ -21,6 +21,7 @@ import {apiGetTemplates} from "./tools/wp-api/get-templates.js";
 import {apiGetRestBaseForPostType} from "./tools/wp-api/get-rest-base-for-post-types.js";
 import {apiUpdatePostContent} from "./tools/wp-api/update-post-content.js";
 import {apiGetPost} from "./tools/wp-api/get-post.js";
+import {cliInstallAndActivatePlugin} from "tools/wp-cli/instal-and-activate-plugin";
 
 const tools = [
     editBlockFile,
@@ -40,7 +41,10 @@ const tools = [
     apiGetGutenbergBlocks,
     apiGetTemplates,
     apiGetRestBaseForPostType,
-    apiUpdatePostContent
+    apiUpdatePostContent,
+
+    // checkAndInstallWPCLI,
+    cliInstallAndActivatePlugin,
 ];
 
 async function loadSiteConfig(): Promise<WPSitesConfig> {
@@ -50,7 +54,7 @@ async function loadSiteConfig(): Promise<WPSitesConfig> {
     }
 
     try {
-        const configData = await fs.readFile(configPath, 'utf8');
+        const configData = await fs.readFileSync(configPath, {encoding: 'utf8'});
         return JSON.parse(configData) as WPSitesConfig;
     } catch (error) {
         if (error instanceof Error) {
@@ -93,6 +97,38 @@ async function main() {
             const tool = tools.find(t => t.name === name);
             if (!tool) {
                 throw new McpError(ErrorCode.MethodNotFound, `Unknown tool: ${name}`);
+            }
+
+            if (name.startsWith('wp_cli_')) {
+                let cliWrapper = '{{cmd}}'
+                if (site.cli === 'localwp') {
+                    if (!site.localWpSshEntryFile || !fs.existsSync(site.localWpSshEntryFile)) {
+                        return {
+                            isError: true,
+                            content: [{
+                                type: "text",
+                                text: `❌ Option: "localWpSshEntryFile" for site "${siteKey}" is not specified in wp-sites.json while option "cli" is "localwp"`
+                            }]
+                        };
+                    }
+                    cliWrapper = `echo $(SHELL= && source "${site.localWpSshEntryFile}" &>/dev/null && {{cmd}})`
+                } else {
+                    return {
+                        isError: true,
+                        content: [
+                            {
+                                type: "text",
+                                text: `❌ Option: "cli" for site "${siteKey}" is not specified in wp-sites.json`
+                            }
+                        ]
+                    };
+                }
+
+                // @ts-ignore
+                return await tool.execute({
+                    ...rawArgs,
+                    siteKey
+                }, site, cliWrapper);
             }
 
             // @ts-ignore
