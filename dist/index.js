@@ -6270,7 +6270,11 @@ const scaffoldBlockTool = {
         properties: {
             siteKey: { type: "string", description: "Site key" },
             name: { type: "string", description: "Block name" },
-            variant: { type: "string", description: "Gutenberg block template variant (static or dynamic)" },
+            variant: {
+                type: "string",
+                enum: ["static", "dynamic"],
+                description: "Gutenberg block template variant (static or dynamic). Default: static"
+            },
             namespace: { type: "string", description: "Gutenberg block namespace" }
         },
         required: ["name", "siteKey", "variant", "namespace"]
@@ -6409,6 +6413,9 @@ const editBlockFile = {
         }
         if (args.filePath.endsWith('block.json')) {
             throw new Error(`This tool cannot edit block.json file. Please use another tool: wp_edit_block_json_file instead and try again.`);
+        }
+        if (args.filePath.includes('/build/')) {
+            throw new Error(`Files within "build" directory shouldn't be edited directly.`);
         }
         try {
             try {
@@ -7192,8 +7199,8 @@ const editBlockJsonFile = {
                 description: "Path to the block.json file relative to the plugin root."
             },
             content: {
-                type: "string",
-                description: "New content for the block.json file"
+                type: "object",
+                description: "New content for the block.json file in JSON format"
             },
             didUserConfirmChanges: {
                 type: "boolean",
@@ -7216,7 +7223,11 @@ const editBlockJsonFile = {
                 await promises.access(fullPath);
             }
             catch {
-                throw new Error(`File block.json not found: ${fullPath}.`);
+                const availableFiles = await listPluginFiles.execute({
+                    ...args,
+                    pluginDirName: args.blockPluginDirname
+                }, site);
+                throw new Error(`File block.json not found: ${fullPath}. Available files within dir ${blockDir}:\n${availableFiles?.files?.join('\n')}`);
             }
             let originalContent;
             try {
@@ -7226,17 +7237,27 @@ const editBlockJsonFile = {
                 const errorMessage = error instanceof Error ? error.message : 'Unknown read error';
                 throw new Error(`Failed to read current block.json file: ${errorMessage}`);
             }
+            let warnings = [];
             try {
                 let newContent = args.content;
+                if (newContent.style !== 'file:./style-index.css') {
+                    warnings.push('Property "style" in block.json is not default. Default value should be: "file:./style-index.css". If you have changed in intentionally it is ok.');
+                }
+                if (newContent.editorStyle !== "file:./index.css") {
+                    warnings.push('Property "editorStyle" in block.json is not default. Default value should be: "file:./index.css". If you have changed in intentionally it is ok.');
+                }
+                if (newContent.render) {
+                    warnings.push('Property "render" in block.json exists, so it is dynamic block. In this case there should not be save.js file for block, but render file is needed.');
+                }
                 if (args.didUserConfirmChanges) {
-                    await promises.writeFile(fullPath, newContent, 'utf-8');
+                    await promises.writeFile(fullPath, JSON.stringify(newContent), 'utf-8');
                 }
                 else {
                     return {
                         isError: true,
                         content: [{
                                 type: "text",
-                                text: `Are you sure to make changes to block.json file within ${fullPath}\nNew content:\n${JSON.stringify(newContent, null, 2)}. Please ask user what he think! Let user confirm or not your changes.`
+                                text: `Are you sure to make changes to block.json file within ${fullPath}\nNew content:\n${JSON.stringify(newContent, null, 2)}.\n\nWarnings:\n${warnings.join('\n')}\n\nPlease ask user what he think! Let user confirm or not your changes.`
                             }]
                     };
                 }
@@ -7244,26 +7265,14 @@ const editBlockJsonFile = {
             catch (error) {
                 throw new Error(`New content cannot be parsed: ${args.content}`);
             }
-            try {
-                const buildResult = await buildBlock.execute({
-                    blockPluginDirname: args.blockPluginDirname,
-                    siteKey: args.siteKey
-                }, site);
-                return {
-                    content: [{
-                            type: "text",
-                            text: `block.json file: ${fullPath} edited successfully.\n\nBuild output:\n${buildResult.content[0].text}`
-                        }]
-                };
-            }
-            catch (error) {
-                const errorMessage = error instanceof Error ? error.message : 'Unknown build error';
-                throw new Error(`block.json file: ${fullPath} edited but build failed: ${errorMessage}. Please try build again on check error logs on your own.`);
-            }
+            const buildResult = await buildBlock.execute({
+                blockPluginDirname: args.blockPluginDirname,
+                siteKey: args.siteKey
+            }, site);
             return {
                 content: [{
                         type: "text",
-                        text: `block.json file: ${fullPath} edited successfully.`
+                        text: `block.json file: ${fullPath} edited successfully.\n\nBuild output:\n${buildResult.content[0].text}\n\nSome warnings about block.json file found:\n${warnings.join('\n')}`
                     }]
             };
         }

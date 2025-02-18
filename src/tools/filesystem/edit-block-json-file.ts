@@ -5,11 +5,12 @@ import path from 'path';
 import {isGutenbergBlock} from '../../helpers.js';
 import {WordPressSite} from "../../types/wp-sites.js";
 import {buildBlock} from "./../build-block.js";
+import {listPluginFiles} from "tools/list-plugin-files";
 
 
 interface EditFileArgs {
     filePath: string;
-    content: string;
+    content: object;
     blockPluginDirname: string;
     siteKey: string;
     didUserConfirmChanges: boolean;
@@ -31,8 +32,8 @@ export const editBlockJsonFile = {
                 description: "Path to the block.json file relative to the plugin root."
             },
             content: {
-                type: "string",
-                description: "New content for the block.json file"
+                type: "object",
+                description: "New content for the block.json file in JSON format"
             },
             didUserConfirmChanges: {
                 type: "boolean",
@@ -59,13 +60,12 @@ export const editBlockJsonFile = {
             try {
                 await fs.access(fullPath);
             } catch {
-                // const availableFiles = await listPluginFiles.execute({
-                //     ...args,
-                //     pluginDirName: args.blockPluginDirname
-                // }, site)
+                const availableFiles = await listPluginFiles.execute({
+                    ...args,
+                    pluginDirName: args.blockPluginDirname
+                }, site)
 
-                // throw new Error(`File block.json not found: ${fullPath}. Available files within dir ${blockDir}:\n${availableFiles?.files?.join('\n')}`);
-                throw new Error(`File block.json not found: ${fullPath}.`);
+                throw new Error(`File block.json not found: ${fullPath}. Available files within dir ${blockDir}:\n${availableFiles?.files?.join('\n')}`);
             }
 
             let originalContent: string;
@@ -76,17 +76,28 @@ export const editBlockJsonFile = {
                 throw new Error(`Failed to read current block.json file: ${errorMessage}`);
             }
 
+            let warnings = [];
             try {
-                let newContent = args.content;
+                let newContent: any = args.content;
+
+                if (newContent.style !== 'file:./style-index.css') {
+                    warnings.push('Property "style" in block.json is not default. Default value should be: "file:./style-index.css". If you have changed in intentionally it is ok.')
+                }
+                if (newContent.editorStyle !== "file:./index.css") {
+                    warnings.push('Property "editorStyle" in block.json is not default. Default value should be: "file:./index.css". If you have changed in intentionally it is ok.')
+                }
+                if (newContent.render) {
+                    warnings.push('Property "render" in block.json exists, so it is dynamic block. In this case there should not be save.js file for block, but render file is needed.')
+                }
 
                 if (args.didUserConfirmChanges) {
-                    await fs.writeFile(fullPath, newContent, 'utf-8');
+                    await fs.writeFile(fullPath, JSON.stringify(newContent), 'utf-8');
                 } else {
                     return {
                         isError: true,
                         content: [{
                             type: "text",
-                            text: `Are you sure to make changes to block.json file within ${fullPath}\nNew content:\n${JSON.stringify(newContent, null, 2)}. Please ask user what he think! Let user confirm or not your changes.`
+                            text: `Are you sure to make changes to block.json file within ${fullPath}\nNew content:\n${JSON.stringify(newContent, null, 2)}.\n\nWarnings:\n${warnings.join('\n')}\n\nPlease ask user what he think! Let user confirm or not your changes.`
                         }]
                     };
                 }
@@ -94,27 +105,15 @@ export const editBlockJsonFile = {
                 throw new Error(`New content cannot be parsed: ${args.content}`);
             }
 
-            try {
-                const buildResult = await buildBlock.execute({
-                    blockPluginDirname: args.blockPluginDirname,
-                    siteKey: args.siteKey
-                }, site);
-
-                return {
-                    content: [{
-                        type: "text",
-                        text: `block.json file: ${fullPath} edited successfully.\n\nBuild output:\n${buildResult.content[0].text}`
-                    }]
-                };
-            } catch (error) {
-                const errorMessage = error instanceof Error ? error.message : 'Unknown build error';
-                throw new Error(`block.json file: ${fullPath} edited but build failed: ${errorMessage}. Please try build again on check error logs on your own.`);
-            }
+            const buildResult = await buildBlock.execute({
+                blockPluginDirname: args.blockPluginDirname,
+                siteKey: args.siteKey
+            }, site);
 
             return {
                 content: [{
                     type: "text",
-                    text: `block.json file: ${fullPath} edited successfully.`
+                    text: `block.json file: ${fullPath} edited successfully.\n\nBuild output:\n${buildResult.content[0].text}\n\nSome warnings about block.json file found:\n${warnings.join('\n')}`
                 }]
             };
 

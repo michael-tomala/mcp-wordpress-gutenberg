@@ -22,7 +22,11 @@ export const scaffoldBlockTool = {
         properties: {
             siteKey: {type: "string", description: "Site key"},
             name: {type: "string", description: "Block name"},
-            variant: {type: "string", description: "Gutenberg block template variant (static or dynamic)"},
+            variant: {
+                type: "string",
+                enum: ["static", "dynamic"],
+                description: "Gutenberg block template variant (static or dynamic). Default: static"
+            },
             namespace: {type: "string", description: "Gutenberg block namespace"}
         },
         required: ["name", "siteKey", "variant", "namespace"]

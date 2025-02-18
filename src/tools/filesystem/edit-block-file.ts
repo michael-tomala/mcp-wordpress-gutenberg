@@ -127,6 +127,9 @@ export const editBlockFile = {
         if (args.filePath.endsWith('block.json')) {
             throw new Error(`This tool cannot edit block.json file. Please use another tool: wp_edit_block_json_file instead and try again.`);
         }
+        if (args.filePath.includes('/build/')) {
+            throw new Error(`Files within "build" directory shouldn't be edited directly.`);
+        }
 
         try {
             try {
