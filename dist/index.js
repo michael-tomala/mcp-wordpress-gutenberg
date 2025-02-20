@@ -6813,7 +6813,7 @@ const apiCreatePost = {
                 pluginData: data,
                 content: [{
                         type: "text",
-                        text: `Post created successfully.\n\nPost: ${JSON.stringify(data)}`
+                        text: `Post created successfully.\n\nPost: ${JSON.stringify(data, null, 2)}`
                     }]
             };
         }
@@ -7285,6 +7285,211 @@ const editBlockJsonFile = {
     }
 };
 
+const apiDeactivatePlugin = {
+    name: "wp_api_deactivate_plugin",
+    description: "Deactivates a WordPress plugin using REST API",
+    inputSchema: {
+        type: "object",
+        properties: {
+            siteKey: { type: "string", description: "Site key" },
+            pluginSlug: { type: "string", description: "Plugin slug to deactivate" }
+        },
+        required: ["pluginSlug", "siteKey"]
+    },
+    async execute(args, site) {
+        try {
+            const pluginSlug = args.pluginSlug.replace('.php', '');
+            const allPlugins = await apiGetPlugins.execute({ ...args, status: 'active' }, site);
+            if (!allPlugins.plugins.find((p) => p.plugin === pluginSlug)) {
+                return {
+                    isError: true,
+                    content: [{
+                            type: "text",
+                            text: `Plugin ${args.pluginSlug} is not active or invalid. Active plugins:\n${allPlugins.pluginsList.join('\n')}. Please try again with a correct plugin slug.`
+                        }]
+                };
+            }
+            const credentials = Buffer.from(`${site.apiCredentials?.username}:${site.apiCredentials?.password}`).toString('base64');
+            const url = `${site.apiUrl}/wp/v2/plugins/${pluginSlug}`;
+            const response = await fetch(url, {
+                method: 'PUT',
+                headers: {
+                    'Authorization': `Basic ${credentials}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    status: 'inactive'
+                })
+            });
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(`Failed to deactivate plugin: ${errorData.message || response.statusText}.\nRequested URL: ${url}`);
+            }
+            const data = await response.json();
+            return {
+                pluginData: data,
+                content: [{
+                        type: "text",
+                        text: `Plugin ${args.pluginSlug} deactivated successfully.\n\nPlugin: ${data}`
+                    }]
+            };
+        }
+        catch (error) {
+            if (error instanceof Error) {
+                throw new McpError(ErrorCode.InternalError, `wp_api_deactivate_plugin failed: ${error.message}`);
+            }
+            throw new McpError(ErrorCode.InternalError, 'wp_api_deactivate_plugin failed: Unknown error occurred');
+        }
+    }
+};
+
+const apiDeletePost = {
+    name: "wp_api_delete_post",
+    description: "Deletes a WordPress post, page, or any custom post type using REST API",
+    inputSchema: {
+        type: "object",
+        properties: {
+            siteKey: { type: "string", description: "Site key" },
+            postId: { type: "integer", description: "ID of the post to delete" },
+            postType: { type: "string", description: "Type of the post (e.g., post, page, custom type)" },
+            force: { type: "boolean", description: "Whether to force delete the post" }
+        },
+        required: ["siteKey", "postId", "postType"]
+    },
+    async execute(args, site) {
+        try {
+            const { restBase } = await apiGetRestBaseForPostType.execute(args, site);
+            const credentials = Buffer.from(`${site.apiCredentials?.username}:${site.apiCredentials?.password}`).toString('base64');
+            const url = `${site.apiUrl}/wp/v2/${restBase}/${args.postId}?force=${args.force ?? false}`;
+            const response = await fetch(url, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Basic ${credentials}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(`Failed to delete post: ${errorData.message || response.statusText}.\nRequested URL: ${url}`);
+            }
+            const data = await response.json();
+            return {
+                postData: data,
+                content: [{
+                        type: "text",
+                        text: `Post ${args.postId} (${args.postType}) deleted successfully.`
+                    }]
+            };
+        }
+        catch (error) {
+            if (error instanceof Error) {
+                throw new McpError(ErrorCode.InternalError, `wp_api_delete_post failed: ${error.message}`);
+            }
+            throw new McpError(ErrorCode.InternalError, 'wp_api_delete_post failed: Unknown error occurred');
+        }
+    }
+};
+
+const apiGetSiteSettings = {
+    name: "wp_api_get_site_settings",
+    description: "Retrieves all WordPress site settings using REST API",
+    inputSchema: {
+        type: "object",
+        properties: {
+            siteKey: { type: "string", description: "Site key" },
+        },
+        required: ["siteKey"]
+    },
+    async execute(args, site) {
+        try {
+            const credentials = Buffer.from(`${site.apiCredentials?.username}:${site.apiCredentials?.password}`).toString('base64');
+            const url = `${site.apiUrl}/wp/v2/settings`;
+            const response = await fetch(url, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Basic ${credentials}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(`Failed to retrieve site settings: ${errorData.message || response.statusText}`);
+            }
+            const settings = await response.json();
+            return {
+                settings,
+                content: [{
+                        type: "text",
+                        text: `Site settings retrieved successfully.\n\nSettings: ${JSON.stringify(settings, null, 2)}`
+                    }]
+            };
+        }
+        catch (error) {
+            if (error instanceof Error) {
+                throw new McpError(ErrorCode.InternalError, `wp_api_get_site_settings failed: ${error.message}`);
+            }
+            throw new McpError(ErrorCode.InternalError, 'wp_api_get_site_settings failed: Unknown error occurred');
+        }
+    }
+};
+
+const VALID_SETTING_KEYS = [
+    "title", "description", "url", "email", "timezone", "date_format", "time_format",
+    "language", "default_post_format", "show_on_front",
+    "default_ping_status", "default_comment_status"
+];
+const apiUpdateStringSiteSetting = {
+    name: "wp_api_update_string_site_setting",
+    description: "Updates a single WordPress site setting in string format using REST API",
+    inputSchema: {
+        type: "object",
+        properties: {
+            siteKey: { type: "string", description: "Site key" },
+            settingKey: {
+                type: "string",
+                enum: VALID_SETTING_KEYS,
+                description: "The key of the setting to update"
+            },
+            settingValue: { type: "string", description: "The new value for the setting" }
+        },
+        required: ["siteKey", "settingKey", "settingValue"]
+    },
+    async execute(args, site) {
+        try {
+            if (!VALID_SETTING_KEYS.includes(args.settingKey)) {
+                throw new Error(`Invalid setting key: ${args.settingKey}. Allowed values: ${VALID_SETTING_KEYS.join(", ")}`);
+            }
+            const credentials = Buffer.from(`${site.apiCredentials?.username}:${site.apiCredentials?.password}`).toString('base64');
+            const url = `${site.apiUrl}/wp/v2/settings`;
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Basic ${credentials}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ [args.settingKey]: args.settingValue })
+            });
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(`Failed to update setting: ${errorData.message || response.statusText}`);
+            }
+            const data = await response.json();
+            return {
+                content: [{
+                        type: "text",
+                        text: `Site settings updated successfully.\n\nNew setting: ${JSON.stringify(data, null, 2)}`
+                    }]
+            };
+        }
+        catch (error) {
+            if (error instanceof Error) {
+                throw new McpError(ErrorCode.InternalError, `wp_api_update_string_site_setting failed: ${error.message}`);
+            }
+            throw new McpError(ErrorCode.InternalError, 'wp_api_update_string_site_setting failed: Unknown error occurred');
+        }
+    }
+};
+
 const tools = [
     editBlockFile,
     scaffoldBlockTool,
@@ -7293,7 +7498,9 @@ const tools = [
     buildBlock,
     editBlockJsonFile,
     apiActivatePlugin,
+    apiDeactivatePlugin,
     apiCreatePost,
+    apiDeletePost,
     apiUpdatePostStatus,
     apiGetPosts,
     apiGetPost,
@@ -7304,6 +7511,8 @@ const tools = [
     apiGetTemplates,
     apiGetRestBaseForPostType,
     apiUpdatePostContent,
+    apiGetSiteSettings,
+    apiUpdateStringSiteSetting,
     cliInstallAndActivatePlugin,
 ];
 async function loadSiteConfig() {
@@ -7345,7 +7554,22 @@ async function main() {
             const { name, arguments: rawArgs } = request.params;
             validateSiteToolArguments(rawArgs);
             const { siteKey } = rawArgs;
-            const site = await validateAndGetSite(config, siteKey);
+            let site;
+            try {
+                site = await validateAndGetSite(config, siteKey);
+            }
+            catch (error) {
+                if (error instanceof Error) {
+                    return {
+                        isError: true,
+                        content: [{
+                                type: "text",
+                                text: `❌ ${error.message}`
+                            }]
+                    };
+                }
+                throw error;
+            }
             const tool = tools.find(t => t.name === name);
             if (!tool) {
                 throw new McpError(ErrorCode.MethodNotFound, `Unknown tool: ${name}`);

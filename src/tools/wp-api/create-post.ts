@@ -87,7 +87,7 @@ export const apiCreatePost = {
                 pluginData: data,
                 content: [{
                     type: "text",
-                    text: `Post created successfully.\n\nPost: ${JSON.stringify(data)}`
+                    text: `Post created successfully.\n\nPost: ${JSON.stringify(data, null, 2)}`
                 }]
             };
         } catch (error) {

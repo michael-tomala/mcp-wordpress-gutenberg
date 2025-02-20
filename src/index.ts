@@ -23,6 +23,11 @@ import {apiUpdatePostContent} from "./tools/wp-api/update-post-content.js";
 import {apiGetPost} from "./tools/wp-api/get-post.js";
 import {cliInstallAndActivatePlugin} from "tools/wp-cli/instal-and-activate-plugin";
 import {editBlockJsonFile} from "tools/filesystem/edit-block-json-file";
+import {WordPressSite} from "types/wp-sites";
+import {apiDeactivatePlugin} from "tools/wp-api/deactivate-plugin";
+import {apiDeletePost} from "tools/wp-api/delete-post";
+import {apiGetSiteSettings} from "tools/wp-api/site-settings/get-site-settings";
+import {apiUpdateStringSiteSetting} from "tools/wp-api/site-settings/update-string-site-setting";
 
 const tools = [
     editBlockFile,
@@ -33,7 +38,9 @@ const tools = [
     editBlockJsonFile,
 
     apiActivatePlugin,
+    apiDeactivatePlugin,
     apiCreatePost,
+    apiDeletePost,
     apiUpdatePostStatus,
     apiGetPosts,
     apiGetPost,
@@ -44,8 +51,9 @@ const tools = [
     apiGetTemplates,
     apiGetRestBaseForPostType,
     apiUpdatePostContent,
+    apiGetSiteSettings,
+    apiUpdateStringSiteSetting,
 
-    // checkAndInstallWPCLI,
     cliInstallAndActivatePlugin,
 ];
 
@@ -94,7 +102,21 @@ async function main() {
             validateSiteToolArguments(rawArgs);
             const {siteKey} = rawArgs;
 
-            const site = await validateAndGetSite(config, siteKey);
+            let site: WordPressSite;
+            try {
+                site = await validateAndGetSite(config, siteKey);
+            } catch (error) {
+                if (error instanceof Error) {
+                    return {
+                        isError: true,
+                        content: [{
+                            type: "text",
+                            text: `❌ ${error.message}`
+                        }]
+                    };
+                }
+                throw error
+            }
 
             const tool = tools.find(t => t.name === name);
             if (!tool) {
