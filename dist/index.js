@@ -7038,70 +7038,6 @@ const apiGetGutenbergBlocks = {
     }
 };
 
-const apiUpdatePostContent = {
-    name: "wp_api_update_post_content",
-    description: "Update the content of a WordPress post with post type using REST API",
-    inputSchema: {
-        type: "object",
-        properties: {
-            siteKey: { type: "string", description: "Site key" },
-            postId: { type: "number", description: "Post ID to update" },
-            postType: { type: "string", description: "Type of the post (e.g., posts, pages)" },
-            content: { type: "string", description: "Optional: New content for the post (only if content changed)" },
-            readCurrentContent: {
-                type: "boolean",
-                description: "Determine, you need a current version of post content to update context or just update content."
-            },
-        },
-        required: ["siteKey", "postId", "postType", "readCurrentContent"]
-    },
-    async execute(args, site) {
-        try {
-            if (args.readCurrentContent) {
-                return {
-                    isError: true,
-                    content: [{
-                            type: "text",
-                            text: `Please generate a new post content from current version:\n\n${""}`
-                        }]
-                };
-            }
-            const { restBase } = await apiGetRestBaseForPostType.execute(args, site);
-            const credentials = Buffer.from(`${site.apiCredentials?.username}:${site.apiCredentials?.password}`).toString('base64');
-            const url = `${site.apiUrl}/wp/v2/${restBase}/${args.postId}`;
-            const bodyData = {
-                content: args.content
-            };
-            const response = await fetch(url, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Basic ${credentials}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(bodyData)
-            });
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(`Failed to update post content: ${errorData.message || response.statusText}.\nRequested URL: ${url}`);
-            }
-            const updatedPost = await response.json();
-            return {
-                updatedPost,
-                content: [{
-                        type: "text",
-                        text: `Post content updated successfully! Preview URL: ${updatedPost.link}.`
-                    }]
-            };
-        }
-        catch (error) {
-            if (error instanceof Error) {
-                throw new McpError(ErrorCode.InternalError, `wp_api_update_post_content failed: ${error.message}`);
-            }
-            throw new McpError(ErrorCode.InternalError, 'wp_api_update_post_content failed: Unknown error occurred');
-        }
-    }
-};
-
 const apiGetPost = {
     name: "wp_api_get_post",
     description: "Retrieve a single post, page, or custom post type item using REST API",
@@ -7144,6 +7080,71 @@ const apiGetPost = {
                 throw new McpError(ErrorCode.InternalError, `wp_api_get_post failed: ${error.message}`);
             }
             throw new McpError(ErrorCode.InternalError, 'wp_api_get_post failed: Unknown error occurred');
+        }
+    }
+};
+
+const apiUpdatePostContent = {
+    name: "wp_api_update_post_content",
+    description: "Update the content of a WordPress post with post type using REST API",
+    inputSchema: {
+        type: "object",
+        properties: {
+            siteKey: { type: "string", description: "Site key" },
+            postId: { type: "number", description: "Post ID to update" },
+            postType: { type: "string", description: "Type of the post (e.g., posts, pages)" },
+            content: { type: "string", description: "Optional: New content for the post (only if content changed)" },
+            readCurrentContent: {
+                type: "boolean",
+                description: "Determine, you need a current version of post content to update context or just update content."
+            },
+        },
+        required: ["siteKey", "postId", "postType", "readCurrentContent"]
+    },
+    async execute(args, site) {
+        try {
+            if (args.readCurrentContent) {
+                const { post } = await apiGetPost.execute(args, site);
+                return {
+                    isError: true,
+                    content: [{
+                            type: "text",
+                            text: `Please generate a new post content from current content revision:\n\n${post?.content?.rendered}`
+                        }]
+                };
+            }
+            const { restBase } = await apiGetRestBaseForPostType.execute(args, site);
+            const credentials = Buffer.from(`${site.apiCredentials?.username}:${site.apiCredentials?.password}`).toString('base64');
+            const url = `${site.apiUrl}/wp/v2/${restBase}/${args.postId}`;
+            const bodyData = {
+                content: args.content
+            };
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Basic ${credentials}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(bodyData)
+            });
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(`Failed to update post content: ${errorData.message || response.statusText}.\nRequested URL: ${url}`);
+            }
+            const updatedPost = await response.json();
+            return {
+                updatedPost,
+                content: [{
+                        type: "text",
+                        text: `Post content updated successfully! Preview URL: ${updatedPost.link}.`
+                    }]
+            };
+        }
+        catch (error) {
+            if (error instanceof Error) {
+                throw new McpError(ErrorCode.InternalError, `wp_api_update_post_content failed: ${error.message}`);
+            }
+            throw new McpError(ErrorCode.InternalError, 'wp_api_update_post_content failed: Unknown error occurred');
         }
     }
 };
@@ -7433,7 +7434,7 @@ const apiGetSiteSettings = {
     }
 };
 
-const VALID_SETTING_KEYS = [
+const VALID_SETTING_KEYS$1 = [
     "title", "description", "url", "email", "timezone", "date_format", "time_format",
     "language", "default_post_format", "show_on_front",
     "default_ping_status", "default_comment_status"
@@ -7447,10 +7448,100 @@ const apiUpdateStringSiteSetting = {
             siteKey: { type: "string", description: "Site key" },
             settingKey: {
                 type: "string",
-                enum: VALID_SETTING_KEYS,
+                enum: VALID_SETTING_KEYS$1,
                 description: "The key of the setting to update"
             },
             settingValue: { type: "string", description: "The new value for the setting" }
+        },
+        required: ["siteKey", "settingKey", "settingValue"]
+    },
+    async execute(args, site) {
+        try {
+            if (!VALID_SETTING_KEYS$1.includes(args.settingKey)) {
+                throw new Error(`Invalid setting key: ${args.settingKey}. Allowed values: ${VALID_SETTING_KEYS$1.join(", ")}`);
+            }
+            const credentials = Buffer.from(`${site.apiCredentials?.username}:${site.apiCredentials?.password}`).toString('base64');
+            const url = `${site.apiUrl}/wp/v2/settings`;
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Basic ${credentials}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ [args.settingKey]: args.settingValue })
+            });
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(`Failed to update setting: ${errorData.message || response.statusText}`);
+            }
+            const data = await response.json();
+            return {
+                settings: data,
+                content: [{
+                        type: "text",
+                        text: `Site settings updated successfully.\n\nNew settings object: ${JSON.stringify(data, null, 2)}`
+                    }]
+            };
+        }
+        catch (error) {
+            if (error instanceof Error) {
+                throw new McpError(ErrorCode.InternalError, `wp_api_update_string_site_setting failed: ${error.message}`);
+            }
+            throw new McpError(ErrorCode.InternalError, 'wp_api_update_string_site_setting failed: Unknown error occurred');
+        }
+    }
+};
+
+const apiGetPostPreviewLink = {
+    name: "wp_api_get_post_preview_link",
+    description: "Retrieve a preview link for single post, page, or custom post type item using REST API. Especially for draft status.",
+    inputSchema: {
+        type: "object",
+        properties: {
+            siteKey: { type: "string", description: "Site key" },
+            postType: { type: "string", description: "Post type (default: posts)" },
+            postId: { type: "integer", description: "Post ID to retrieve" },
+        },
+        required: ["siteKey", "postType", "postId"]
+    },
+    async execute(args, site) {
+        try {
+            const { post } = await apiGetPost.execute(args, site);
+            const postPreviewUrl = `${post?.guid?.rendered}&preview=true`;
+            return {
+                post: post,
+                previewLink: postPreviewUrl,
+                content: [{
+                        type: "text",
+                        text: `Post preview link retrieved successfully. Remember it is only for logged in user with proper permissions.\nURL: ${postPreviewUrl}`
+                    }]
+            };
+        }
+        catch (error) {
+            if (error instanceof Error) {
+                throw new McpError(ErrorCode.InternalError, `wp_api_get_post_preview_link failed: ${error.message}`);
+            }
+            throw new McpError(ErrorCode.InternalError, 'wp_api_get_post_preview_link failed: Unknown error occurred');
+        }
+    }
+};
+
+const VALID_SETTING_KEYS = [
+    "post_per_page", "page_on_front", "page_for_posts", "site_logo", "site_icon", "default_category", "start_of_week"
+];
+const apiUpdateIntegerSiteSetting = {
+    name: "wp_api_update_integer_site_setting",
+    description: "Updates a single WordPress site setting in integer format using REST API",
+    inputSchema: {
+        type: "object",
+        properties: {
+            siteKey: { type: "string", description: "Site key" },
+            settingKey: {
+                type: "string",
+                enum: VALID_SETTING_KEYS,
+                description: "The key of the setting to update"
+            },
+            settingValue: { type: "integer", description: "The new value for the setting" }
         },
         required: ["siteKey", "settingKey", "settingValue"]
     },
@@ -7475,17 +7566,18 @@ const apiUpdateStringSiteSetting = {
             }
             const data = await response.json();
             return {
+                settings: data,
                 content: [{
                         type: "text",
-                        text: `Site settings updated successfully.\n\nNew setting: ${JSON.stringify(data, null, 2)}`
+                        text: `Site settings updated successfully.\n\nNew settings object: ${JSON.stringify(data, null, 2)}`
                     }]
             };
         }
         catch (error) {
             if (error instanceof Error) {
-                throw new McpError(ErrorCode.InternalError, `wp_api_update_string_site_setting failed: ${error.message}`);
+                throw new McpError(ErrorCode.InternalError, `wp_api_update_integer_site_setting failed: ${error.message}`);
             }
-            throw new McpError(ErrorCode.InternalError, 'wp_api_update_string_site_setting failed: Unknown error occurred');
+            throw new McpError(ErrorCode.InternalError, 'wp_api_update_integer_site_setting failed: Unknown error occurred');
         }
     }
 };
@@ -7513,13 +7605,12 @@ const tools = [
     apiUpdatePostContent,
     apiGetSiteSettings,
     apiUpdateStringSiteSetting,
+    apiUpdateIntegerSiteSetting,
+    apiGetPostPreviewLink,
     cliInstallAndActivatePlugin,
 ];
 async function loadSiteConfig() {
-    const configPath = process.env.WP_SITES_PATH;
-    if (!configPath) {
-        throw new Error("WP_SITES_PATH environment variable is required");
-    }
+    const configPath = process.env.WP_SITES_PATH || "/Users/michael/Code/mcp-test-server/wp-sites.json";
     try {
         const configData = await fs$1.readFileSync(configPath, { encoding: 'utf8' });
         return JSON.parse(configData);
@@ -7611,7 +7702,6 @@ async function main() {
         });
         const transport = new StdioServerTransport();
         await server.connect(transport);
-        console.error(`WordPress MCP server started with ${Object.keys(config.sites).length} site(s) configured`);
     }
     catch (error) {
         console.error(`Server failed to start: ${error instanceof Error ? error.message : String(error)}`);

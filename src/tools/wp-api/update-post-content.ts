@@ -1,6 +1,7 @@
 import {WordPressSite} from "types/wp-sites";
 import {ErrorCode, McpError} from "@modelcontextprotocol/sdk/types.js";
 import {apiGetRestBaseForPostType} from "./get-rest-base-for-post-types.js";
+import {apiGetPost} from "tools/wp-api/get-post";
 
 export const apiUpdatePostContent = {
     name: "wp_api_update_post_content",
@@ -30,11 +31,12 @@ export const apiUpdatePostContent = {
         try {
 
             if (args.readCurrentContent) {
+                const {post} = await apiGetPost.execute(args, site)
                 return {
                     isError: true,
                     content: [{
                         type: "text",
-                        text: `Please generate a new post content from current version:\n\n${""}`
+                        text: `Please generate a new post content from current content revision:\n\n${post?.content?.rendered}`
                     }]
                 };
             }
